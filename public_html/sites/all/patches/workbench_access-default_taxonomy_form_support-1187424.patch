@@ -1,0 +1,360 @@
+Index: /modules/taxonomy.workbench_access.inc
+===================================================================
+--- a/modules/taxonomy.workbench_access.inc	(revision 409)
++++ b/modules/taxonomy.workbench_access.inc	(working copy)
+@@ -242,3 +242,36 @@
+     workbench_access_section_delete($access_scheme);
+   }
+ }
++
++/**
++ * Executes a form alter on a specific FieldAPI form element.
++ */
++function taxonomy_workbench_access_default_form_alter(&$form, &$form_state, $options) {
++  foreach ($form['workbench_access_fields']['#value'] as $item) {
++    // If the element isn't set, we can't do anything.
++    // Note that we cannot act on autocomplete widgets.
++    if (!isset($form[$item][$form[$item]['#language']]) || !isset($form[$item][$form[$item]['#language']]['#options'])) {
++      continue;
++    }
++
++    // Set the element to be altered.
++    $element = &$form[$item][$form[$item]['#language']];
++
++    // Set the options for the form.
++    foreach ($element['#options'] as $key => $value) {
++      if ($key != '_none' && !isset($options[$key])) {
++        unset($element['#options'][$key]);
++      }
++    }
++  }
++  // Inform Workbench Access which data element we store on the node.
++  // (e.g.) $node->{$field}[LANGUAGE][][COLUMN].
++  $form['workbench_access_column'] = array(
++    '#type' => 'value',
++    '#value' => 'tid',
++  );
++  $form['workbench_access_language'] = array(
++    '#type' => 'value',
++    '#value' => TRUE,
++  );
++}
+Index: /workbench_access.admin.inc
+===================================================================
+--- a/workbench_access.admin.inc	(revision 409)
++++ b/workbench_access.admin.inc	(working copy)
+@@ -90,6 +90,12 @@
+     '#default_value' => variable_get('workbench_access_allow_multiple', 0),
+     '#description' => t('Let content be assigned to multiple sections.'),
+   );
++  $form['workbench_access_custom_form'] = array(
++    '#type' => 'checkbox',
++    '#title' => t('Require a Workbench Access form element'),
++    '#default_value' => variable_get('workbench_access_custom_form', 1),
++    '#description' => t('If not selected, Workbench Access settings will inherit from the standard node form.'),
++  );
+   $form = system_settings_form($form);
+   $form['#validate'][] = 'workbench_access_settings_validate';
+   $form['#submit'][] = 'workbench_access_settings_submit';
+Index: /workbench_access.module
+===================================================================
+--- a/workbench_access.module	(revision 409)
++++ b/workbench_access.module	(working copy)
+@@ -621,6 +621,34 @@
+  * Implements hook_node_presave().
+  */
+ function workbench_access_node_presave($node) {
++  // Did we use the default field form?
++  if (isset($node->workbench_access_fields)) {
++    $node->workbench_access_id = array();
++    foreach ($node->workbench_access_fields as $field) {
++      if (!is_array($node->{$field})) {
++        $node->workbench_access_id[] = $node->{$field};
++      }
++      else {
++        if (!empty($node->workbench_access_language)) {
++          $language = field_language('node', $node, $field);
++          $data = $node->{$field}[$language];
++        }
++        else {
++          $data = array($node->{$field});
++        }
++        foreach ($data as $value) {
++          if (isset($value[$node->workbench_access_column])) {
++            // Handle disabled menu links.
++            if (!isset($value['enabled']) || !empty($value['enabled'])) {
++              $node->workbench_access_id[] = $value[$node->workbench_access_column];
++            }
++          }
++        }
++      }
++    }
++  }
++  // Ensure that the data format is consistent and that items that cannot
++  // be changed by this editor are preserved.
+   if (isset($node->workbench_access_id) && isset($node->workbench_access_fixed)) {
+     if (!is_array($node->workbench_access_id)) {
+       $node->workbench_access_id = array($node->workbench_access_id);
+@@ -630,6 +658,10 @@
+     }
+     $node->workbench_access_id += $node->workbench_access_fixed;
+   }
++  // Due to form handling, it is possible that we have duplicate entries.
++  if (isset($node->workbench_access_id) && is_array($node->workbench_access_id)) {
++    $node->workbench_access_id = array_unique($node->workbench_access_id);
++  }
+ }
+ 
+ /**
+@@ -1286,87 +1318,187 @@
+  */
+ function workbench_access_form_alter(&$form, $form_state, $form_id) {
+   global $user;
+-  // Fire any active internal module hooks.
++
++  // Make sure we prepared the user.
++  if (!isset($user->workbench_access)) {
++    workbench_access_user_load_data($user);
++  }
++
++  // Fire any active internal module hooks for non-node forms.
+   if (empty($form['#node_edit_form'])) {
+     workbench_access_alter_form($form_id, $form, $form_state);
++    return;
+   }
+-  // Ensure that we can enforce our rules.
+-  elseif (!isset($form['#node']->type) || !variable_get('workbench_access_node_type_' . $form['#node']->type, 1)) {
++
++  // Fire the node form alter, if there are configured sections.
++  if (!workbench_access_allow_form_alter()) {
+     return;
+   }
+-  // Fire the node form alter.
++
++  // Determine which form element to target.
++  if (variable_get('workbench_access_custom_form', 1)) {
++    // Provide a form element.
++    workbench_access_node_form_element($form, $form_state);
++  }
+   else {
+-    // Make sure we prepared the user.
+-    if (!isset($user->workbench_access)) {
+-      workbench_access_user_load_data($user);
++    workbench_access_default_form_element($form, $form_state);
++  }
++  // Register the access scheme with the form.
++  $active = workbench_access_get_active_tree();
++  $form['workbench_access']['workbench_access_scheme'] = array(
++    '#type' => 'value',
++    '#value' => $active['access_scheme'],
++  );
++}
++
++/**
++ * Check to see if the module is configured and we can run our form alter.
++ *
++ * TODO: Make this a generic function, which is called elsewhere.
++ */
++function workbench_access_allow_form_alter() {
++  $active = workbench_access_get_active_tree();
++  $ids = array_filter($active['access_scheme']['access_type_id']);
++  if (!empty($ids)) {
++    return TRUE;
++  }
++  return FALSE;
++}
++
++/**
++ * Provides a module-specific form for access control.
++ */
++function workbench_access_node_form_element(&$form, $form_state) {
++  global $user;
++
++  // Prepare the form element.
++  $active = workbench_access_get_active_tree();
++  if (empty($active['active'])) {
++    drupal_set_message(workbench_access_sections_needed_message(), 'warning');
++    return;
++  }
++  $tree = workbench_access_get_user_tree();
++  // Generate options so we can check for access.
++  $options = workbench_access_options($tree, $active['active']);
++  $default = array();
++  if (!empty($form['#node']->workbench_access)) {
++    $default = array_keys($form['#node']->workbench_access);
++  }
++  // If there are no options and the 'workbench_access' variable has not been set
++  // then it seems that Workbench Access has not been configured.
++  if (empty($options) && !variable_get('workbench_access', FALSE)) {
++    $message = workbench_access_configuration_needed_message();
++    // Using 'error' instead of warning because the user should not have gotten this far
++    // without configuring Workbench Access.
++    drupal_set_message($message, 'error', $repeat = FALSE);
++  }
++
++  // The base form element.
++  $multiple = variable_get('workbench_access_allow_multiple', 0);
++  $element = array(
++    '#type' => 'select',
++    '#title' => t('@message_label', array('@message_label' => variable_get('workbench_access_label', 'Section'))),
++    '#options' => $options,
++    '#required' => TRUE,
++    '#default_value' => $default,
++    '#multiple' => $multiple,
++    '#description' => ($multiple) ? t('Select the proper editorial group(s) for this content.') : t('Select the proper editorial group for this content.'),
++  );
++  // If the default is set and is not in the user's range, then pass hidden and
++  // display a message.
++  // TODO: $default might legitimately be zero in some edge cases.
++  if (!empty($default)) {
++    $all = array();
++    $disallowed = array();
++    foreach ($default as $item) {
++      if (isset($active['tree'][$item]['name'])) {
++        $all[$active['tree'][$item]['access_id']] = check_plain($active['tree'][$item]['name']);
++        if (!isset($options[$item])) {
++          $disallowed[$active['tree'][$item]['access_id']] = check_plain($active['tree'][$item]['name']);
++        }
++      }
+     }
++    if (!empty($disallowed)) {
++      $diff = array_diff($all, $disallowed);
++      // TODO: If we toggle from single to multiple, then this can get messy.
++      if (empty($diff) || !variable_get('workbench_access_allow_multiple', 0)) {
++        $element['#type'] = 'value';
++        $element['#value'] = $element['#default_value'];
++        $form['workbench_access']['message'] = array(
++          '#type' => 'item',
++          '#title' => t('Workbench access'),
++          '#markup' => t('%title is assigned to the %section editorial group(s), which may not be changed.', array('%title' => $form['#node']->title, '%section' => implode(', ', $disallowed))),
++        );
++      }
++      else {
++        $form['workbench_access']['workbench_access_fixed'] = array(
++          '#type' => 'value',
++          '#value' => array_keys($disallowed),
++        );
++        $element['#description'] = $element['#description'] . '<br />' . t('%title is also assigned to the %section editorial group(s), which may not be changed.', array('%title' => $form['#node']->title, '%section' => implode(', ', $disallowed)));
++      }
++    }
++  }
++  workbench_access_alter_form('node_element', $element, $form_state);
++  $form['workbench_access']['workbench_access_id'] = $element;
++}
++
++/**
++ * Find and alter the native form element for node editing.
++ *
++ * FieldAPI makes this much harder than it needs to be.
++ */
++function workbench_access_default_form_element(&$form, &$form_state) {
++  // Try to find the form element(s) to target.
++  workbench_access_find_form_elements($form);
++  if (empty($form['workbench_access_fields']['#value'])) {
++    drupal_set_message(workbench_access_configuration_needed_message(), 'warning');
++  }
++  else {
+     // Prepare the form element.
+     $active = workbench_access_get_active_tree();
+-    if (empty($active['active'])) {
+-      drupal_set_message(workbench_access_sections_needed_message(), 'warning');
+-      return;
+-    }
+     $tree = workbench_access_get_user_tree();
+     // Generate options so we can check for access.
+     $options = workbench_access_options($tree, $active['active']);
+-    $default = array();
+-    if (!empty($form['#node']->workbench_access)) {
+-      $default = array_keys($form['#node']->workbench_access);
++    // Call the function.
++    $func = $form['workbench_access_fields']['#access_type'] . '_workbench_access_default_form_alter';
++    if (function_exists($func)) {
++      $func($form, $form_state, $options);
+     }
+-    // If there are no options and the 'workbench_access' variable has not been set
+-    // then it seems that Workbench Access has not been configured.
+-    if (empty($options) && !variable_get('workbench_access', FALSE)) {
+-      $message = workbench_access_configuration_needed_message();
+-      // Using 'error' instead of warning because the user should not have gotten this far
+-      // without configuring Workbench Access.
+-      drupal_set_message($message, 'error', $repeat = FALSE);
+-    }
++  }
++}
+ 
+-    // The base form element.
+-    $multiple = variable_get('workbench_access_allow_multiple', 0);
+-    $element = array(
+-      '#type' => 'select',
+-      '#title' => t('@message_label', array('@message_label' => variable_get('workbench_access_label', 'Section'))),
+-      '#options' => $options,
+-      '#required' => TRUE,
+-      '#default_value' => $default,
+-      '#multiple' => $multiple,
+-      '#description' => ($multiple) ? t('Select the proper editorial group(s) for this content.') : t('Select the proper editorial group for this content.'),
+-    );
+-    // If the default is set and is not in the user's range, then pass hidden and
+-    // display a message.
+-    // TODO: $default might legitimately be zero in some edge cases.
+-    if (!empty($default)) {
+-      $all = array();
+-      $disallowed = array();
+-      foreach ($default as $item) {
+-        if (isset($active['tree'][$item]['name'])) {
+-          $all[$active['tree'][$item]['access_id']] = check_plain($active['tree'][$item]['name']);
+-          if (!isset($options[$item])) {
+-            $disallowed[$active['tree'][$item]['access_id']] = check_plain($active['tree'][$item]['name']);
++/**
++ * Find form elements that control access.
++ */
++function workbench_access_find_form_elements(&$form) {
++  $active = workbench_access_get_active_tree();
++
++  $form['workbench_access_fields'] = array(
++    '#type' => 'value',
++    '#value' => array(),
++    '#access_type' => $active['access_scheme']['access_type'],
++  );
++  // Find the menu form, which is easy.
++  if ($active['access_scheme']['access_type'] == 'menu') {
++    $form['workbench_access_fields']['#value'][] = 'menu';
++  }
++  // Find taxonomy and other fieldable entities.
++  else {
++    $ids = array_filter($active['access_scheme']['access_type_id']);
++
++    // Gee, thanks FieldAPI!
++    foreach (element_children($form) as $item) {
++      if ($field = field_info_field($item)) {
++        // Find matching taxonomy fields.
++        if ($field['type'] == 'taxonomy_term_reference') {
++          if (isset($field['settings']['allowed_values'][0]['vocabulary'])) {
++            if (!empty($ids[$field['settings']['allowed_values'][0]['vocabulary']])) {
++              $form['workbench_access_fields']['#value'][] = $item;
++            }
+           }
+         }
+       }
+-      if (!empty($disallowed)) {
+-        $diff = array_diff($all, $disallowed);
+-        // TODO: If we toggle from single to multiple, then this can get messy.
+-        if (empty($diff) || !variable_get('workbench_access_allow_multiple', 0)) {
+-          $element['#type'] = 'value';
+-          $element['#value'] = $element['#default_value'];
+-          $form['workbench_access']['message'] = array(
+-            '#type' => 'item',
+-            '#title' => t('Workbench access'),
+-            '#markup' => t('%title is assigned to the %section editorial group(s), which may not be changed.', array('%title' => $form['#node']->title, '%section' => implode(', ', $disallowed))),
+-          );
+-        }
+-        else {
+-          $form['workbench_access']['workbench_access_fixed'] = array(
+-            '#type' => 'value',
+-            '#value' => array_keys($disallowed),
+-          );
+-          $element['#description'] = $element['#description'] . '<br />' . t('%title is also assigned to the %section editorial group(s), which may not be changed.', array('%title' => $form['#node']->title, '%section' => implode(', ', $disallowed)));
+-        }
+-      }
+     }
+     workbench_access_alter_form('node_element', $element, $form_state);
+     $form['workbench_access']['#type'] = 'container';

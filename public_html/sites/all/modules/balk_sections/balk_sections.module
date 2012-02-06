@@ -1,0 +1,450 @@
+<?php
+
+/**
+ * @file
+ * Sections code for Balk.
+ */
+
+/**
+ * Implements hook_entity_info_alter().
+ *
+ * Implemented here because balk_custom has a weight of 5 and we need this alter
+ * in a 0 weight module.
+ */
+function balk_sections_entity_info_alter(&$entity_info) {
+  $entity_info['file']['view modes']['medium_ratio'] = array(
+    'label' => t('Medium ratio'),
+    'custom settings' => TRUE,
+  );
+  $entity_info['file']['view modes']['small_ratio'] = array(
+    'label' => t('Small ratio'),
+    'custom settings' => TRUE
+  );
+}
+
+/**
+ * Implements hook_block_info().
+ */
+function balk_sections_block_info() {
+  $blocks['section_right_column'] = array(
+    'info' => t('Section right column'),
+    'cache' => DRUPAL_CACHE_PER_PAGE,
+  );
+  return $blocks;
+}
+
+/**
+ * Implements hook_block_view().
+ */
+function balk_sections_block_view($delta = '') {
+  $block['subject'] = NULL;
+  $block['content'] = balk_section_get_block_content();
+
+  return $block;
+}
+
+/**
+ * Returns the HTML output for the right_section block.
+ */
+function balk_section_get_block_content() {
+  $output = '';
+  $active_trail = menu_get_active_trail();
+  $section_id = NULL;
+
+  // Load the current node if we are on a node page.
+  $node = '';
+  if (arg(0) == 'node' && is_numeric(arg(1)) && !arg(2)) {
+    $node = node_load(arg(1));
+    $inherit_right_column = (!empty($node->field_inherit_right_column)) ? $node->field_inherit_right_column[LANGUAGE_NONE][0]['value'] : NULL;
+    $parent_nid = (!empty($node->field_parent_node)) ? $node->field_parent_node[LANGUAGE_NONE][0]['nid'] : NULL;
+
+    // If we need to inherit the right column from a level 2 menu item AND we
+    // don't have a parent node.
+    if (!empty($node) && $inherit_right_column && !$parent_nid && isset($node->workbench_access)) {
+      // Determine the section id for the current page.
+      $wb_access = $node->workbench_access;
+      if (count($wb_access) == 1) {
+        $section_id = reset($wb_access);
+      }
+    }
+  }
+
+  // If we are on a taxonomy page, get the section id from the menu active trail.
+  if (arg(0) == 'taxonomy' && arg(1) == 'term' && is_numeric(arg(2)) && !arg(3)) {
+    if ($active_trail[2]['menu_name'] == 'main-menu' && $active_trail[2]['router_path'] == 'taxonomy/term/%') {
+      $current_path = explode('/', $active_trail[2]['link_path']);
+      $section_id = end($current_path);
+    }
+  }
+
+  // If we have a section id, we can further check if there's a right_section
+  // node for this section.
+  if ($section_id) {
+    $query = new EntityFieldQuery();
+    $query->entityCondition('entity_type', 'node')
+      ->entityCondition('bundle', 'right_column', '=')
+      ->fieldCondition('field_site_structure', 'tid', $section_id, '=');
+
+    if ($result = $query->execute()) {
+      $efq_node = reset($result['node']);
+      $right_column_node = node_load($efq_node->nid);
+      $node_rendered = node_view($right_column_node, 'related_block');
+      $output .= drupal_render($node_rendered);
+
+      // Set the context info for the right column inheritance.
+      balk_sections_set_right_column_context(t('Right column fields inherited from: @title [nid:!nid]', array('@title' => $right_column_node->title, '!nid' => $right_column_node->nid)));
+    }
+  }
+
+  return $output;
+}
+
+/**
+ * Implements hook_workbench_block().
+ *
+ * Add the current nid and right column information to the Workbench Access block.
+ */
+function balk_sections_workbench_block() {
+  if ($node = menu_get_object()) {
+    $return = array(t('Current nid: %nid', array('%nid' => $node->nid)));
+
+    if ($right_column_info = balk_sections_get_right_column_context()) {
+      $return[] = $right_column_info;
+    }
+
+    return $return;
+  }
+}
+
+/**
+ * Implements hook_field_attach_view_alter().
+ *
+ * We alter the field output for right column fields in order to get the
+ * field_inherit_right_column functionality.
+ */
+function balk_sections_field_attach_view_alter(&$output, $context) {
+  if ($node = menu_get_object() && $context['entity_type'] == 'node' && $context['view_mode'] == '_custom' && $context['entity']->type == 'contentpage') {
+    $node = $context['entity'];
+    $inherit_right_column = (!empty($node->field_inherit_right_column)) ? $node->field_inherit_right_column[LANGUAGE_NONE][0]['value'] : NULL;
+    $parent_nid = (!empty($node->field_parent_node)) ? $node->field_parent_node[LANGUAGE_NONE][0]['nid'] : NULL;
+
+    if ($inherit_right_column && $parent_nid) {
+      $parent_node = node_load($parent_nid);
+      balk_sections_set_right_column_context(t('Right column fields inherited from: @title [nid:!nid]', array('@title' => $parent_node->title, '!nid' => $parent_node->nid)));
+      
+      // Loop throught every right column field.
+      foreach (_balk_section_get_right_column_fields() as $field_name) {
+        $language = field_language('node', $parent_node, $field_name);
+        if ($field_output = _balk_sections_field_view_field('node', $parent_node, $field_name, $context['display'], $language)) {
+          $output[$field_name] = $field_output;
+        }
+      }
+    }
+  }
+}
+
+/**
+ * Set context information for balk_sections_get_right_column_context.
+ * 
+ * @param string $info
+ * 
+ * @return string
+ */
+function balk_sections_set_right_column_context($info = NULL) {
+  $context = &drupal_static(__FUNCTION__, array());
+  
+  if (!empty($info)) {
+    $context = $info;
+  }
+  
+  return $context;
+}
+
+/**
+ * Get context information for right column info.
+ */
+function balk_sections_get_right_column_context() {
+  return balk_sections_set_right_column_context();
+}
+/**
+ * Returns an array of field names that are assigned to the right column region.
+ */
+function _balk_section_get_right_column_fields() {
+  return array(
+    'field_right_column',
+    'field_related',
+    'field_related_tema',
+    'field_related_person',
+    'field_mediafile',
+    'field_additional_info',
+  );
+}
+
+/**
+ * Implements hook_action_info().
+ */
+function balk_sections_action_info() {
+  return array(
+    'balk_sections_node_set_inherit_field_action' => array(
+      'type' => 'node',
+      'label' => t('Set the "Inherit right column" field'),
+      'configurable' => TRUE,
+      'triggers' => array('node_presave', 'comment_insert', 'comment_update', 'comment_delete'),
+    ),
+  );
+}
+
+/**
+ * Action that changes the value of a field_inherit_right_column field.
+ *
+ * @param $node
+ *   A node object to modify.
+ * @param $context
+ *   Array with the following elements:
+ *   - 'field_value': The value that should be assigned to this field.
+ *
+ * @ingroup actions
+ */
+function balk_sections_node_set_inherit_field_action(&$node, $context) {
+  $value = $context['field_value'];
+
+  if (!empty($value)) {
+    $node->field_inherit_right_column[LANGUAGE_NONE][0] = $value;
+    
+    $changed = $node->changed;
+    
+    node_save($node);
+    
+    // Fix $node->changed value.
+    db_update('node')
+      ->fields(array('changed' => $changed))
+      ->condition('nid', $node->nid)
+      ->execute();
+    $node->changed = $changed;
+  }
+}
+
+/**
+ * Generates the settings form for balk_sections_node_set_inherit_field_action().
+ */
+function balk_sections_node_set_inherit_field_action_form($context) {
+  $options = array(
+    '1' => t("Inherit"),
+    '0' => t("Don't inherit"),
+  );
+  
+  $form['field_value'] = array(
+    '#type' => 'select',
+    '#title' => t('Right column value'),
+    '#default_value' => 1,
+    '#options' => $options,
+  );
+
+  return $form;
+}
+
+/**
+ * Saves settings form for balk_sections_node_set_inherit_field_action().
+ */
+function balk_sections_node_set_inherit_field_action_submit($form, $form_state) {
+  return array(
+    'field_value' => $form_state['values']['field_value']
+  );
+}
+
+/**
+ * Implements hook_page_delivery_callback_alter().
+ *
+ * This is the only hook that occurs after the page callback, but before
+ * hook_page_build (when blocks are added). We're using this hook for its
+ * timing, not its data.
+ */
+function balk_sections_page_delivery_callback_alter() {
+  $active_trail = menu_get_active_trail();
+  
+  // Override configuration for the left menu block (switch between levels 2 and 3).
+  if (isset($active_trail[2]) || (isset($active_trail[1]['router_path']) && $active_trail[1]['router_path'] == 'node/%')) {
+    variable_set('menu_block_6_level', 3);
+  }
+  else {
+    variable_set('menu_block_6_level', 2);
+  }
+  
+  // Set the active menu trail if we are on a node page.
+  $context = array();
+  $context['path'] = $_GET['q'];
+  if (arg(0) == 'node' && is_numeric(arg(1))) {
+    $context['node'] = node_load(arg(1));
+  }
+  balk_sections_set_menu_item($context);
+}
+
+/**
+ * Set an active menu item.
+ */
+function balk_sections_set_menu_item($context) {
+  if (isset($context['node'])) {
+    $node = $context['node'];
+
+    $node_menu_link = _balk_sections_get_menu_link('node/' . $node->nid);
+
+    // Check if the current node has a menu link.
+    // If it doesn't, get the parent node menu link in order to set the menu path.
+    if (empty($node_menu_link)) {
+      if (!empty($node->field_parent_node) && $field_parent_node = field_get_items('node', $node, 'field_parent_node')) {
+        $parent_nid = $field_parent_node[0]['nid'];
+        $parent_node = node_load($parent_nid);
+
+        $node_menu_link = _balk_sections_get_menu_link('node/' . $parent_node->nid);
+
+        // If the parent node has a menu entry, use that as a path.
+        if (!empty($node_menu_link)) {
+          menu_tree_set_path('main-menu', 'node/' . $parent_node->nid);
+        }
+        else {
+          // Repeat this step once more. Not the cleanest code, but had to be done in a hurry..
+          if (!empty($node->field_parent_node) && $field_parent_node = field_get_items('node', $node, 'field_parent_node')) {
+            $parent_nid = $field_parent_node[0]['nid'];
+            $parent_node = node_load($parent_nid);
+            
+            $node_menu_link = _balk_sections_get_menu_link('node/' . $parent_node->nid);
+
+            // If the parent node has a menu entry, use that as a path.
+            if (!empty($node_menu_link)) {
+              menu_tree_set_path('main-menu', 'node/' . $parent_node->nid);
+            }
+          }
+        }
+      }
+      elseif (!empty($node->field_site_structure) && $site_structure = field_get_items('node', $node, 'field_site_structure')) {
+        $first_category = taxonomy_term_load($site_structure[0]['tid']);
+
+        // Override the current active path.
+        menu_tree_set_path('main-menu', 'taxonomy/term/' . $first_category->tid);
+        
+        // Set the active trail as well, in order to get the correct body classes (in balk's theme template.php).
+        $taxonomy_menu_link = _balk_sections_get_menu_link('taxonomy/term/' . $first_category->tid);
+        if (!empty($taxonomy_menu_link)) {
+          $new_trail = array();
+          $new_trail[] = array(
+            'title' => t('Home'),
+            'href' => '<front>',
+            'link_path' => '',
+            'localized_options' => array(),
+            'type' => 0,
+          );
+          $new_trail[] = menu_link_load($taxonomy_menu_link[0]->p1);
+          $new_trail[] = menu_link_load($taxonomy_menu_link[0]->mlid);
+          menu_set_active_trail($new_trail);
+        }
+      }
+    }
+  }
+}
+
+/**
+ * Returns the mlid for a given menu path.
+ */
+function _balk_sections_get_menu_link($link_path) {
+  $node_menu_link = db_select('menu_links', 'ml')
+    ->fields('ml', array('mlid', 'p1'))
+    ->condition('menu_name', 'main-menu')
+    ->condition('link_path', $link_path)
+    ->execute()
+    ->fetchAll();
+
+  return $node_menu_link;
+}
+
+/**
+ * Returns a renderable array for the value of a single field in an entity.
+ *
+ * The resulting output is a fully themed field with label and multiple values.
+ *
+ * This function can be used by third-party modules that need to output an
+ * isolated field.
+ * - Do not use inside node (or other entities) templates, use
+ *   render($content[FIELD_NAME]) instead.
+ * - Do not use to display all fields in an entity, use
+ *   field_attach_prepare_view() and field_attach_view() instead.
+ * - The field_view_value() function can be used to output a single formatted
+ *   field value, without label or wrapping field markup.
+ *
+ * The function takes care of invoking the prepare_view steps. It also respects
+ * field access permissions.
+ *
+ * @param $entity_type
+ *   The type of $entity; e.g., 'node' or 'user'.
+ * @param $entity
+ *   The entity containing the field to display. Must at least contain the id
+ *   key and the field data to display.
+ * @param $field_name
+ *   The name of the field to display.
+ * @param $display
+ *   Can be either:
+ *   - The name of a view mode. The field will be displayed according to the
+ *     display settings specified for this view mode in the $instance
+ *     definition for the field in the entity's bundle.
+ *     If no display settings are found for the view mode, the settings for
+ *     the 'default' view mode will be used.
+ *   - An array of display settings, as found in the 'display' entry of
+ *     $instance definitions. The following key/value pairs are allowed:
+ *     - label: (string) Position of the label. The default 'field' theme
+ *       implementation supports the values 'inline', 'above' and 'hidden'.
+ *       Defaults to 'above'.
+ *     - type: (string) The formatter to use. Defaults to the
+ *       'default_formatter' for the field type, specified in
+ *       hook_field_info(). The default formatter will also be used if the
+ *       requested formatter is not available.
+ *     - settings: (array) Settings specific to the formatter. Defaults to the
+ *       formatter's default settings, specified in
+ *       hook_field_formatter_info().
+ *     - weight: (float) The weight to assign to the renderable element.
+ *       Defaults to 0.
+ * @param $langcode
+ *   (Optional) The language the field values are to be shown in. The site's
+ *   current language fallback logic will be applied no values are available
+ *   for the language. If no language is provided the current language will be
+ *   used.
+ * @return
+ *   A renderable array for the field value.
+ *
+ * @see field_view_field()
+ */
+function _balk_sections_field_view_field($entity_type, $entity, $field_name, $display = array(), $langcode = NULL) {
+  $output = array();
+
+  if ($field = field_info_field($field_name)) {
+    if (is_array($display)) {
+      // When using custom display settings, fill in default values.
+      $display = _field_info_prepare_instance_display($field, $display);
+    }
+
+    // Hook invocations are done through the _field_invoke() functions in
+    // 'single field' mode, to reuse the language fallback logic.
+    // Determine the actual language to display for the field, given the
+    // languages available in the field data.
+    $display_language = field_language($entity_type, $entity, $field_name, $langcode);
+    $options = array('field_name' => $field_name, 'language' => $display_language);
+    $null = NULL;
+
+    // Invoke prepare_view steps if needed.
+    if (empty($entity->_field_view_prepared)) {
+      list($id) = entity_extract_ids($entity_type, $entity);
+
+      // First let the field types do their preparation.
+      _field_invoke_multiple('prepare_view', $entity_type, array($id => $entity), $display, $null, $options);
+      // Then let the formatters do their own specific massaging.
+      _field_invoke_multiple_default('prepare_view', $entity_type, array($id => $entity), $display, $null, $options);
+    }
+
+    // Build the renderable array.
+    $result = _field_invoke_default('view', $entity_type, $entity, $display, $null, $options);
+
+    if (isset($result[$field_name])) {
+      $output = $result[$field_name];
+    }
+  }
+
+  return $output;
+}

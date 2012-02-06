@@ -1,0 +1,4 @@
+name = Borger.dk
+description = Imports articles from borger.dk, save them as nodes and autoupdates the stash on cron.
+core = 7.x
+files[] = borgerdk.module

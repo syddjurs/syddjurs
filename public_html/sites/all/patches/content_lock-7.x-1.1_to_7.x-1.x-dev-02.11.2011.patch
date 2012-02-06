@@ -1,0 +1,162 @@
+diff --git a/content_lock.admin.inc b/content_lock.admin.inc
+index f505009..9fc4126 100644
+--- a/content_lock.admin.inc
++++ b/content_lock.admin.inc
+@@ -10,7 +10,7 @@ function content_lock_admin_settings() {
+   $form['content_lock_unload_js'] = array(
+       '#type' => 'checkbox',
+       '#title' => t('Use javascript to detect leaving the node form'),
+-      '#description' => t('If you disable this, there will be no messages like &ldquo;Do you really want to leave this node and lose all changes? The lock will be removed if you proceed.&rdquo;. Also, disabling this will cause nodes to remain locked if the user avoids saving the node and does not use the cancel button (i.e., by clicking a menu link to navigate away from a node-edit page).'),
++      '#description' => t('If you disable this, there will be no messages like “Do you really want to leave this node and lose all changes? The lock will be removed if you proceed.”. Also, disabling this will cause nodes to remain locked if the user avoids saving the node and does not use the cancel button (i.e., by clicking a menu link to navigate away from a node-edit page).'),
+       '#default_value' => variable_get('content_lock_unload_js', true),
+   );
+   $form['content_lock_unload_js_message'] = array(
+diff --git a/content_lock.info b/content_lock.info
+index 70b328b..d775f8c 100644
+--- a/content_lock.info
++++ b/content_lock.info
+@@ -2,7 +2,6 @@ name = "Content locking (edit lock)"
+ description = "Prevents multiple users from trying to edit a single node simultaneously to prevent edit conflicts."
+ core = 7.x
+ project = "content_lock"
+-package = "Drupal Wiki"
+ dependencies[] = filter
+ dependencies[] = node
+ files[] = content_lock.install
+diff --git a/content_lock.module b/content_lock.module
+index 9dc57f3..864d5fc 100644
+--- a/content_lock.module
++++ b/content_lock.module
+@@ -33,11 +33,11 @@ function content_lock_help($path, $arg) {
+       $output .= '<p>'. t('Users may also permanently lock content, to prevent others from editing it.  Content locks that have been "forgotten" can be automatically released after a configurable time span.') .'</p>';
+       return $output;
+ 
+-    case 'admin/content/node/content_lock':
+-      return '<p>'. t('Below is a list of all locked documents. Click on <em>check in</em> to release a lock.') .'</p>';
++    case 'admin/content/content_lock':
++      return '<p>'. t('Below is a list of all locked documents. Click on <em>!checkin</em> to release a lock.', array('!checkin' => t('release lock'))) .'</p>';
+ 
+     case 'user/%/content_lock':
+-      return '<p>'. t('Below is a list of all documents locked by you. Click on <em>check in</em> to release a lock.') .'</p>';
++      return '<p>'. t('Below is a list of all documents locked by you. Click on <em>!checkin</em> to release a lock.', array('!checkin' => t('release lock'))) .'</p>';
+   }
+ }
+ 
+@@ -45,7 +45,7 @@ function content_lock_help($path, $arg) {
+  * Implementation of hook_menu().
+  */
+ function content_lock_menu() {
+-  $items['admin/content/node/content_lock'] = array(
++  $items['admin/content/content_lock'] = array(
+     'title' => 'Locked documents',
+     'page callback' => 'content_lock_overview',
+     'access callback' => 'user_access',
+@@ -53,9 +53,9 @@ function content_lock_menu() {
+     'weight' => 5,
+     'type' => MENU_LOCAL_TASK,
+   );
+-  $items['admin/content/node/content_lock/release'] = array(
++  $items['admin/content/content_lock/release'] = array(
+     'page callback' => 'content_lock_release_item',
+-    'page arguments' => array(5, NULL),
++    'page arguments' => array(4, NULL),
+     'access arguments' => array('administer checked out documents'),
+     'type' => MENU_CALLBACK,
+   );
+@@ -79,7 +79,7 @@ function content_lock_menu() {
+     'page arguments' => array(2,false),
+     'access callback' => true
+   );
+-  $items['admin/settings/content_lock'] = array (
++  $items['admin/config/content/content_lock'] = array (
+     'type' => MENU_NORMAL_ITEM,
+     'title' => 'Content lock',
+     'description' => 'Configuration options for the Content lock module',
+@@ -320,7 +320,7 @@ function _content_lock_verbose() {
+ 
+ function _content_lock_add_cancelbutton(&$form, $form_state, $form_id) {
+   // If we're on the node form
+-  if (!empty($form['#node']) && ($node = $form['#node']) && $form['#id'] == $node->type . '-node-form') {
++  if (!empty($form['#node']) && ($node = $form['#node']) && $form_id == $node->type . '_node_form') {
+     // If we're editing a node (not adding)
+     if ($node->nid) {
+       $form['actions']['cancel'] = array(
+@@ -405,7 +405,7 @@ function content_lock_node($nid, $uid, $quiet = FALSE) {
+   if ($lock != FALSE && $lock->uid != $uid) {
+     $message = content_lock_lock_owner($lock);
+     if (user_access('administer checked out documents')) {
+-      $url = "admin/content/node/content_lock/release/$nid";
++      $url = "admin/content/content_lock/release/$nid";
+     }
+ 
+     if (isset($url)) {
+@@ -512,7 +512,7 @@ function content_lock_overview($account = NULL) {
+ 
+   $rows = array();
+   foreach ($query->execute() as $data) {
+-    $url = $uid ? "admin/content/".$data->nid."/content_lock/releaseown" : 'admin/content/node/content_lock/release/'.$data->nid;
++    $url = $uid ? "admin/content/".$data->nid."/content_lock/releaseown" : 'admin/content/content_lock/release/'.$data->nid;
+     $row = array();
+     $row[] = l($data->title, "node/$data->nid");
+     if (!$uid) {
+@@ -547,7 +547,7 @@ function content_lock_release_item($nid, $account = NULL) {
+   if(_content_lock_verbose()) {
+     drupal_set_message(t('The editing lock has been released.'),'status', FALSE);
+   }
+-  drupal_goto($account ? "user/{$account->uid}/content_lock" : 'admin/content/node/content_lock');
++  drupal_goto($account ? "user/{$account->uid}/content_lock" : 'admin/content/content_lock');
+ }
+ 
+ /**
+diff --git a/js/content_lock_init.js b/js/content_lock_init.js
+index 35a328c..7bd84c5 100644
+--- a/js/content_lock_init.js
++++ b/js/content_lock_init.js
+@@ -3,15 +3,14 @@
+  *   Initialize onUnload scripts.
+  */
+ 
+-(function($) {
++Drupal.behaviors.content_lock = {
++  attach: function(context) {
+   window.content_lock_onleave = function  () {
+     var nid = Drupal.settings.content_lock.nid;
+     var ajax_key = Drupal.settings.content_lock.ajax_key;
+-    var protocol = $(location).attr('protocol');
+-    var host  = $(location).attr('host');
+-    var aurl = protocol+host+Drupal.settings.basePath + 'index.php?q=ajax/content_lock/'+nid+'/canceledit&k='+ajax_key;
+-    $.ajax({
+-      url:   aurl,
++    jQuery.ajax({
++      url: Drupal.settings.basePath + 'ajax/content_lock/'+nid+'/canceledit',
++      data: {k: ajax_key},
+       async: false,
+       cache: false
+     });
+@@ -21,11 +20,10 @@
+     return Drupal.t(Drupal.settings.content_lock.unload_js_message);
+   }
+ 
+-  $(document).ready(function() {
+-    $().onUserExit( {
++    jQuery().onUserExit( {
+       execute: content_lock_onleave,
+       executeConfirm: content_lock_confirm,
+       internalURLs: 'canceledit|trash/confirm|edit'
+     });
+-  });
+-})(jQuery);
++  }
++};
+diff --git a/modules/content_lock_timeout/content_lock_timeout.info b/modules/content_lock_timeout/content_lock_timeout.info
+index 64b172c..dbce618 100644
+--- a/modules/content_lock_timeout/content_lock_timeout.info
++++ b/modules/content_lock_timeout/content_lock_timeout.info
+@@ -2,7 +2,6 @@ name = Content locking (edit lock) timeouts
+ description = Provides mechanisms for automatically unlocking nodes that have been locked for a certain length of time.
+ core = 7.x
+ project = "content_lock"
+-package = "Drupal Wiki"
+ dependencies[] = content_lock
+ files[] = content_lock_timeout.install
+ files[] = content_lock_timeout.module

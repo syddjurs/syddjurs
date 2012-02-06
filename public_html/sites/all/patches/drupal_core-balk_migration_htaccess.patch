@@ -1,0 +1,14 @@
+Index: .htaccess
+===================================================================
+--- .htaccess	(revision 157)
++++ .htaccess	(working copy)
+@@ -103,6 +103,9 @@
+   # uncomment the following line:
+   # RewriteBase /
+ 
++  # Balk Migration.
++ RewriteRule ^get/([0-9]+)\.html$ uri_map_redirect.php?migrate_source_id=$1 [L,QSA]
++
+   # Pass all requests not referring directly to files in the filesystem to
+   # index.php. Clean URLs are handled in drupal_environment_initialize().
+   RewriteCond %{REQUEST_FILENAME} !-f

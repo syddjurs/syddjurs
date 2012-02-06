@@ -1,0 +1,58 @@
+--- image.install
++++ image.install
+@@ -121,13 +121,13 @@
+       'alt' => array(
+         'description' => "Alternative image text, for the image's 'alt' attribute.",
+         'type' => 'varchar',
+-        'length' => 128,
++        'length' => 1024,
+         'not null' => FALSE,
+       ),
+       'title' => array(
+         'description' => "Image title text, for the image's 'title' attribute.",
+         'type' => 'varchar',
+-        'length' => 128,
++        'length' => 1024,
+         'not null' => FALSE,
+       ),
+     ),
+@@ -244,6 +244,39 @@
+ }
+ 
+ /**
++ * Uses a large setting (1024 characters) for the length of the image alt and
++ * title fields.
++ */
++function image_update_7003() {
++  $alt_spec = array(
++    'type' => 'varchar',
++    'length' => 1024,
++    'not null' => FALSE,
++  );
++  $title_spec = array(
++    'type' => 'varchar',
++    'length' => 1024,
++    'not null' => FALSE,
++  );
++  $fields = _update_7000_field_read_fields(array(
++    'module' => 'image',
++    'storage_type' => 'field_sql_storage',
++  ));
++  foreach ($fields as $field_name => $field) {
++    $table = _field_sql_storage_tablename($field);
++    $revision_table = _field_sql_storage_revision_tablename($field);
++
++    $alt_column = $field['field_name'] . '_' . 'alt';
++    db_change_field($table, $alt_column, $alt_column, $alt_spec);
++    db_change_field($revision_table, $alt_column, $alt_column, $alt_spec);
++
++    $title_column = $field['field_name'] . '_' . 'title';
++    db_change_field($table, $title_column, $title_column, $title_spec);
++    db_change_field($revision_table, $title_column, $title_column, $title_spec);
++  }
++}
++
++/**
+  * Implements hook_requirements() to check the PHP GD Library.
+  *
+  * @param $phase

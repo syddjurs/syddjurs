@@ -1,0 +1,330 @@
+<?php
+
+/**
+ * @file
+ * Extra settings for the Rotating Banner module.
+ */
+
+/**
+ * Implements hook_form_FORM_ID_alter().
+ */
+function rotating_banner_extra_settings_form_rotating_banner_slide_add_alter(&$form, &$form_state, $form_id, $banner) {
+  _rotating_banner_extra_settings_form($form, $form_state, $form_id, $banner);
+}
+
+/**
+ * Implements hook_form_FORM_ID_alter().
+ */
+function rotating_banner_extra_settings_form_rotating_banner_slide_edit_alter(&$form, &$form_state, $form_id, $banner, $slide = NULL) {
+  _rotating_banner_extra_settings_form($form, $form_state, $form_id, $banner, $slide);
+}
+
+/**
+ * Adds an image_type radio selection to the slide form.
+ */
+function _rotating_banner_extra_settings_form(&$form, &$form_state, $form_id, $banner, $slide = NULL) {
+  $image_types = variable_get('rotating_banner_extra_settings_image_types');
+  
+  $rbid = $form['rbid']['#value'];
+  if (isset($form['sid']['#value'])) {
+    $sid = $form['sid']['#value'];
+  }
+    
+  $image_type = (isset($sid) && isset($image_types[$rbid][$sid])) ? $image_types[$rbid][$sid] : '1';
+  
+  $form['image_type'] = array(
+    '#type' => 'radios',
+    '#title' => t('Image type'),
+    '#options' => array(
+      '1' => t('Regular'),
+      '0' => t('Full background'),
+    ),
+    '#default_value' => $image_type,
+    '#weight' => 1,
+  );
+  
+  $form['submit']['#weight'] = 10;
+  
+  $form['#submit'][] = 'rotating_banner_extra_settings_form_submit';
+}
+
+/**
+ * Submit callback; Saves the image type option for a slide.
+ */
+function rotating_banner_extra_settings_form_submit($form, &$form_state) {
+  $values = $form_state['values'];
+  $rbid = $values['rbid'];
+  
+  if (empty($values['sid'])) {
+    $result = db_select('rotating_banner_slides', 'rbs')
+      ->fields('rbs', array('sid'))
+      ->condition('rbid', $values['rbid'], '=')
+      ->orderBy('sid', 'DESC')
+      ->execute()
+      ->fetchAssoc();
+    $sid = $result['sid'];
+  }
+  else {
+    $sid = $values['sid'];
+  }
+
+  $image_types = variable_get('rotating_banner_extra_settings_image_types', array());
+  $image_types[$rbid][$sid] = $values['image_type'];
+  
+  variable_set('rotating_banner_extra_settings_image_types', $image_types);
+}
+
+/**
+ * Implements hook_theme_registry_alter().
+ */
+function rotating_banner_extra_settings_theme_registry_alter(&$theme_registry) {
+  $theme_registry['rotating_banner']['function'] = 'theme_rotating_banner_extra_settings';
+  
+  // Default a slide to the 'Regular' image type.
+  $theme_registry['rotating_banner_slide']['variables']['image_type'] = '1';
+  $theme_registry['rotating_banner_slide']['function'] = 'theme_rotating_banner_extra_settings_slide';
+  
+  $theme_registry['rotating_banner_slide_image']['variables']['image_type'] = '1';
+  $theme_registry['rotating_banner_slide_image']['function'] = 'theme_rotating_banner_extra_settings_slide_image';
+}
+
+function theme_rotating_banner_extra_settings($variables) {
+  $banner = $variables['banner'];
+  $slides = $variables['slides'];
+
+  #print $banner->rbid;
+
+  $settings = $banner->settings;
+  if (is_string($settings)) {
+    $settings = unserialize($settings);
+  }
+  $fluid = $settings['fluid'];
+  
+  // This is kinda annoying, but this actually needs to be 0 for it to not show.
+  if (!$settings['cycle']['timeout']) {
+    $settings['cycle']['timeout'] = 0;
+  }
+  $path = drupal_get_path('module', 'rotating_banner');
+
+  $banners = array();
+  $id = 'rotating-banner-' . $banner->rbid;
+  $banners[$id] = $settings;
+
+  drupal_add_js(array('rotatingBanners' => $banners), 'setting');
+
+  // The prefix will be added later based on the contained slides and the layout type
+  $element = array(
+    '#prefix' => '<div class="rotating-banner" id="' . $id,
+    '#suffix' => '</div>',
+  );
+
+  $element['#attached']['css'][] = $path . '/rotating_banner.css';
+  $element['#attached']['js'][] = $path . '/includes/jquery.easing.js';
+  $element['#attached']['js'][] = $path . '/includes/jquery.cycle.js';
+  $element['#attached']['js'][] = $path . '/rotating_banner.js';
+  
+  // Add sweet effects
+  $element['#attached']['libraries'][] = 'effects';
+
+  // We set the max-height here because the controls shouldn't be affected by overflow:hidden;
+  if (!$fluid) {
+    $rbStyle = "max-height: {$settings['height']}" . 'px;';
+  } else {
+    $rbStyle = "max-height: auto;";
+  }
+  $element['slides'] = array(
+    '#prefix' => '<div class="rb-slides" style="' . $rbStyle . '">'  . "\n\t",
+    '#suffix' => '</div>',
+  );
+ 
+  // These values are to set the w/h for fluid banners and the height for static banners
+  $smallest = NULL;
+  $ratio = NULL;
+  $ratioPointer = NULL;
+
+  // Get our custom image types.
+  $image_types = variable_get('rotating_banner_extra_settings_image_types', array());
+  
+  foreach ($slides as $k => $slide) {
+    $first_slide = FALSE;
+    if ($k == 0) {
+      $first_slide = TRUE;
+    }
+
+    $file = file_load($slide->fid);
+    if ($file) {
+      $size = getimagesize($file->uri);
+      if ($size[0] < $smallest || $smallest == NULL) {
+        $smallest = $size[0];
+      }
+
+      // Determine if the slide has the smallest w/h ratio
+      if (($size[0]/$size[1]) < $ratio || $ratio == NULL) {
+        $ratio = $size[0]/$size[1];
+        $ratioPointer = $k;
+      }
+    }
+    
+    $link = $slide->link;
+
+    $textboxes = $slide->textboxes;
+    $layout = $slide->layout;
+    
+    $element['slides']['slide_' . $k] = array(
+      '#theme' => 'rotating_banner_slide',
+      '#banner' => $banner,
+      '#background_image' => $file,
+      '#textboxes' => $textboxes,
+      '#link' => $link,
+      '#layout' => $layout,
+      '#tallest' => false,
+      '#first' => $first_slide,
+      '#image_type' => $image_types[$slide->rbid][$slide->sid],
+    );
+  }
+  
+  $element['slides']['slide_' . $ratioPointer]['#tallest'] = 'tallest';
+  
+  // If the banner is static, we set the width, and if fluid it is a max-width.
+  if (!$fluid) {
+    $style = 'width: ';
+    $element['#prefix'] = '<div class="static-wrapper"><div class="rotating-banner" id="' . $id;
+    $element['#suffix'] = '</div></div>';
+  } else {
+    $style = 'max-width: ';
+  }
+  
+  // If the banner is fluid or doesn't have a set width, we need to use the width of the narrowest slide that we calculated earlier
+  if ($fluid || $settings['width'] <= 0) {
+    if ($smallest) {
+      $style .= $smallest . "px;";
+    }
+    $element['#prefix'] = $element['#prefix'] . '" style="' . $style . '">' . "\n\t";
+  } else {
+    
+    $style .= $settings['width'] . "px;";
+    $element['#prefix'] = $element['#prefix'] . '" style="' . $style . '">' . "\n\t";
+  }
+
+  if (isset($settings['controls'])) {
+    $content = $settings['controls'] == 'prev_next' ? '<a href="#" class="prev">' . t('Prev') . '</a><a href="#" class="next">' . t('Next') . '</a>' : '';
+
+
+    $element['controls'] = array(
+      '#markup' => '<div class="' . $settings['controls'] . ' controls">' . $content . '</div>',
+    );
+  }
+  
+  return $element;
+}
+
+/**
+ * Creates HTML for the individual slides
+ *
+ * @param {Array} variables
+ *   Array of properties associated with the slide
+ *
+ * @return {String}
+ *   A string that when printed produces HTML.
+ */
+function theme_rotating_banner_extra_settings_slide($variables) {
+  $banner = $variables['banner'];
+  $background_image = $variables['background_image'];
+  $link = $variables['link'];
+  $image_type = $variables['image_type'];
+  // The following check was added because json_decode behavior is
+  // inconsistent across versions of PHP.  Details can be found here
+  // http://php.net/manual/en/function.json-decode.php
+  if(is_string($variables['textboxes'])) {
+    $textboxes = drupal_json_decode($variables['textboxes']);
+  }
+  else {
+    $textboxes = $variables['textboxes'];
+  }
+  $layout = $variables['layout'];
+  $tallest = $variables['tallest'];
+  $first = $variables['first'];
+  $fluid = $banner->settings['fluid'];
+  $image_url = '';
+  $textbox_output = '';
+  if ($textboxes) {
+    foreach ($textboxes as $textbox) {
+      $textbox['layout'] = $layout;
+      $textbox['link'] = $link;
+      $textbox_output .= theme('rotating_banner_slide_textbox', $textbox);
+    }
+  }
+  // Get ready to output the HTML.
+  $contents = '';
+  // We need the wrapper even if their aren't textboxes so that the banner edit form has something to prepend new ones to.
+  $contents .= '<div class="' . $layout . ' layout-wrapper"';
+  if ($link) {
+    $contents .= ' data-link="'.url($link).'"';
+  } 
+  $contents .= '>' . "\n\t";
+  
+  if ($textbox_output) {
+    $contents .= $textbox_output;
+  }
+  $contents .= '</div>' . "\n";
+  
+  if ($background_image) {
+    $contents .= theme('rotating_banner_slide_image', array('background_image' => $background_image, 'link' => $link, 'image_type' => $image_type));
+  }
+  // First slide in the set.
+  if ($first) {
+    $first = "rb-first-slide";
+  }
+  else {
+    $first = '';
+  }
+  if ($fluid) {
+    $fluid = 'fluid';
+  }
+  else {
+    $fluid = 'static';
+  }
+  return '<div class="rb-slide ' . $layout . ' ' . $tallest . ' ' . $first . ' ' . $fluid . '">' . "\n\t" . $contents . '</div>' . "\n";
+}
+
+/**
+ * Creates an image tag and wraps it in a link if a link exists
+ *
+ * @param {Array} variables
+ *   Array of properties associated with the background image
+ *
+ * @return {String}
+ *   A string that when printed produces HTML.
+ */
+function theme_rotating_banner_extra_settings_slide_image($variables) {
+  $background_image = $variables['background_image'];
+  $link = $variables['link'];
+  $image_type = $variables['image_type'];
+  $output = '';
+  
+  $attributes = array(
+    'class' => 'rb-background-image',
+  );
+  if ($image_type) {
+    $attributes['class'] .= ' rb-regular-image';
+  }
+  
+  $link_attributes = array(
+    'class' => array('rb-link'),
+  );
+  if ($image_type) {
+    $link_attributes['class'][] = 'rb-link-regular-image';
+  }
+  
+  if ($background_image) {
+    $image_url = file_create_url($background_image->uri);
+  }
+  
+  if ($image_url) {
+    $output .= "\n" . theme('image', array('path' => $image_url, 'attributes' => $attributes));
+  }
+  if ($link) {
+    $output = l($output, $link, array('html' => TRUE, 'attributes' => $link_attributes));
+  }
+  return $output;
+}

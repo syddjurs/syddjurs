@@ -1,0 +1,126 @@
+/* General */
+
+.form-text,
+.form-textarea {
+  border: 1px solid #d9d9d9;
+  background: url(../images/forms/bg-textfield.png) no-repeat 0 0;
+  font-size: 12px;
+}
+
+.form-text {
+  padding: 5px 5px 3px 5px;
+  line-height: 14px;
+}
+
+.form-submit {
+  height: 27px;
+  border: 1px solid #d9d9d9;
+  padding: 0 20px 0 10px;
+  line-height: 1em;
+  background: #fff url(../images/forms/bg-button2.png) 100% 50%;
+  font-weight: Arial;
+  font-size: 12px;
+  color: #333333;
+  text-transform: uppercase;
+}
+.form-submit::-moz-focus-inner { 
+  border: 0;
+  padding: 0;
+}
+
+html.js input.form-autocomplete {
+  background-position: 100% 5px;
+}
+
+html.js input.throbbing {
+  background-position: 100% -15px;
+}
+
+/* END General */
+
+
+/* Top Search */
+
+#search-block-form .form-text {
+  width: 160px;
+  height: 20px;
+  padding: 3px 10px 2px 10px;
+  line-height: 20px;
+  font-size: 12px;
+}
+
+#search-block-form .form-submit {
+  padding: 0 17px 0 10px;
+}
+
+/* END Top Search */
+
+
+/* Uniform */
+
+/* Select */
+div.selector, 
+div.selector span {
+  background-image: url(../images/forms/sprite_select.png);
+}
+
+div.selector {
+  background-position: -483px -135px;
+  line-height: 27px;
+  height: 27px;
+}
+
+div.selector span {
+  background-position: right 0px;
+  height: 27px;
+  line-height: 27px;
+}
+
+div.selector select {
+  top: 0px;
+  left: 0px;
+  width: 100%;
+}
+
+div.selector:active, 
+div.selector.active {
+  background-position: -483px -162px;
+}
+
+div.selector:active span, 
+div.selector.active span {
+  background-position: right -27px;
+}
+
+div.selector.focus, div.selector.hover, div.selector:hover {
+  background-position: -483px -189px;
+}
+
+div.selector.focus span, div.selector.hover span, div.selector:hover span {
+  background-position: right -54px;
+}
+
+div.selector.focus:active,
+div.selector.focus.active,
+div.selector:hover:active,
+div.selector.active:hover {
+  background-position: -483px -216px;
+}
+
+div.selector.focus:active span,
+div.selector:hover:active span,
+div.selector.active:hover span,
+div.selector.focus.active span {
+  background-position: right -81px;
+}
+
+div.selector.disabled {
+  background-position: -483px -243px;
+}
+
+div.selector.disabled span {
+  background-position: right -108px;
+}
+/* END Select */
+
+/* END Uniform */

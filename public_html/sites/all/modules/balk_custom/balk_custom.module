@@ -1,0 +1,498 @@
+<?php
+
+/**
+ * @file
+ * Custom code for Balk.
+ */
+
+/**
+ * Implementation of hook_ctools_plugin_api().
+ */
+function balk_custom_ctools_plugin_api() {
+  list($module, $api) = func_get_args();
+  if ($module == "feeds" && $api == "feeds_importer_default") {
+    return array("version" => 1);
+  }
+}
+
+/**
+ * Implements hook_menu_alter().
+ */
+function balk_custom_menu_alter(&$items) {
+  $items['node']['page callback'] = 'balk_custom_node_page_default';
+}
+
+/**
+ * Menu callback; Custom node front page.
+ */
+function balk_custom_node_page_default() {
+  drupal_not_found();
+}
+
+// -----------------------------------------------------------------------------
+// Cache Optimizations
+
+/**
+ * Implementation of hook_menu_link_update().
+ */
+function balk_custom_menu_link_update($link) {
+  // Delete the entire block cache when a menu link is updated.
+  cache_clear_all('*', 'cache_block', TRUE);
+}
+
+// -----------------------------------------------------------------------------
+// END Cache Optimizations
+
+/**
+ * Implements hook_form_FORM_ID_alter().
+ */
+function balk_custom_form_search_block_form_alter(&$form, &$form_state, $form_id) {
+  // Empty text for the search submit button.
+  $form['actions']['submit']['#value'] = '';
+  $form['search_block_form']['#attributes']['placeholder'] = 'Indsæt søgeord';
+}
+
+/**
+ * Implements hook_form_FORM_ID_alter().
+ */
+function balk_custom_form_user_admin_account_alter(&$form, &$form_state, $form_id) {
+  $form['accounts']['#header']['name_and_position'] = array('data' => t('Name and position'));
+
+  $uids = array_keys($form['accounts']['#options']);
+  $accounts = user_load_multiple($uids);
+
+  foreach ($form['accounts']['#options'] as $key => $option) {
+    $field_items = field_get_items('user', $accounts[$key], 'field_navn_stilling');
+    $form['accounts']['#options'][$key]['name_and_position'] = $field_items[0]['safe_value'];
+  }
+}
+
+/**
+ * Implements hook_entity_info_alter().
+ */
+function balk_custom_entity_info_alter(&$entity_info) {
+  $entity_info['node']['view modes']['related_block'] = array(
+      'label' => t('Related block'),
+      'custom settings' => '1',
+  );
+}
+
+/**
+ * Implements hook_field_formatter_info().
+ */
+function balk_custom_field_formatter_info() {
+  return array(
+      'balk_custom_iframe' => array(
+          'label' => t('iFrame content'),
+          'field types' => array('text'),
+          'settings' => array('width' => 460, 'height' => 400),
+      ),
+      'balk_custom_node_reference_nid' => array(
+          'label' => t('Nid'),
+          'description' => t('Display the nid of the referenced node.'),
+          'field types' => array('node_reference'),
+      ),
+  );
+}
+
+/**
+ * Implements hook_field_formatter_settings_form().
+ */
+function balk_custom_field_formatter_settings_form($field, $instance, $view_mode, $form, &$form_state) {
+  $display = $instance['display'][$view_mode];
+  $settings = $display['settings'];
+
+  $element = array();
+
+  if ($display['type'] == 'balk_custom_iframe') {
+    $element['width'] = array(
+        '#title' => t('Width'),
+        '#type' => 'textfield',
+        '#size' => 3,
+        '#default_value' => $settings['width'],
+        '#element_validate' => array('element_validate_integer_positive'),
+        '#required' => TRUE,
+    );
+    $element['height'] = array(
+        '#title' => t('Height'),
+        '#type' => 'textfield',
+        '#size' => 3,
+        '#default_value' => $settings['height'],
+        '#element_validate' => array('element_validate_integer_positive'),
+        '#required' => TRUE,
+    );
+  }
+
+  return $element;
+}
+
+/**
+ * Implements hook_field_formatter_settings_summary().
+ */
+function balk_custom_field_formatter_settings_summary($field, $instance, $view_mode) {
+  $display = $instance['display'][$view_mode];
+  $settings = $display['settings'];
+
+  $summary = array();
+
+  if ($display['type'] == 'balk_custom_iframe') {
+    $summary[] = t('Width') . ': ' . $settings['width'];
+    $summary[] = t('Height') . ': ' . $settings['height'];
+  }
+
+  return implode('<br />', $summary);
+}
+
+/**
+ * Implements hook_field_formatter_view().
+ */
+function balk_custom_field_formatter_view($entity_type, $entity, $field, $instance, $langcode, $items, $display) {
+  $element = array();
+
+  if ($display['type'] == 'balk_custom_iframe') {
+    foreach ($items as $delta => $item) {
+      $output = '<iframe src="' . $item['safe_value'] . '" width="' . $display['settings']['width'] . '" height="' . $display['settings']['height'] . '"></iframe>';
+
+      $element[$delta] = array('#markup' => $output);
+    }
+  } elseif ($display['type'] == 'balk_custom_node_reference_nid') {
+    foreach ($items as $delta => $item) {
+      $output = $item['nid'];
+
+      $element[$delta] = array('#markup' => $output);
+    }
+  }
+
+  return $element;
+}
+
+/**
+ * Implements hook_filter_info().
+ */
+function balk_custom_filter_info() {
+  $filters['balk_custom_migrate'] = array(
+      'title' => t('Rewrite URLs for migrated content'),
+      'process callback' => '_filter_balk_custom_migrate',
+      'weight' => -20,
+  );
+
+  return $filters;
+}
+
+/**
+ * HTML filter. Rewrites URLs for migrated Balk content.
+ */
+function _filter_balk_custom_migrate($text, $filter) {
+  $text = preg_replace_callback('/((?:http:\/\/www.ballerup.dk|)\/get\/([0-9]+).html|@@OLDURL:([0-9]+)@@)/i', '_filter_balk_custom_migrate_parse_urls', $text);
+  $text = preg_replace_callback('/@@FILENAME:([^@]+)@@|http:\/\/(www.|)ballerup.dk\/data\/[0-9]+\/([^"]+)/i', '_filter_balk_custom_migrate_parse_files', $text);
+
+  return $text;
+}
+
+/**
+ * preg_replace callback to rewrite old URLs.
+ */
+function _filter_balk_custom_migrate_parse_urls($match) {
+  $url = '';
+
+  $source_id = (!empty($match[2])) ? $match[2] : $match[3];
+
+  $query = new EntityFieldQuery();
+
+  $query->entityCondition('entity_type', 'node')
+          ->fieldCondition('field_source_id', 'value', $source_id, '=');
+  $result = $query->execute();
+
+  if (!empty($result)) {
+    $node = reset($result['node']);
+    $url = url('node/' . $node->nid);
+  }
+
+  return $url;
+}
+
+/**
+ * preg_replace callback to rewrite old file paths.
+ */
+function _filter_balk_custom_migrate_parse_files($match) {
+  $source = (!empty($match[1])) ? $match[1] : $match[3];
+  return file_create_url("public://m/" . $source);
+}
+
+/**
+ * Implements hook_action_info().
+ */
+function balk_custom_action_info() {
+  return array(
+      'balk_custom_node_assign_term_action' => array(
+          'type' => 'node',
+          'label' => t('Assign site structure to content'),
+          'configurable' => TRUE,
+          'triggers' => array('node_presave', 'comment_insert', 'comment_update', 'comment_delete'),
+      ),
+      'balk_custom_node_empty_lead_image_action' => array(
+          'type' => 'node',
+          'label' => t('Remove all lead images'),
+          'configurable' => FALSE,
+          'triggers' => array('node_presave', 'comment_insert', 'comment_update', 'comment_delete'),
+      ),
+  );
+}
+
+/**
+ * Assign a taxonomy term to a node.
+ *
+ * @param $node
+ *   A node object to modify.
+ * @param $context
+ *   Array with the following elements:
+ *   - 'tids': Taxonomy tids to assign to the node.
+ *
+ * @ingroup actions
+ */
+function balk_custom_node_assign_term_action(&$node, $context) {
+  $tids = $context['tids'];
+
+  if (!empty($tids)) {
+    $node->field_site_structure[LANGUAGE_NONE] = array();
+
+    $node->workbench_access = array();
+    $tree = workbench_access_get_active_tree();
+    $node->workbench_access_scheme = $tree['access_scheme'];
+
+    foreach ($tids as $tid) {
+      $node->field_site_structure[LANGUAGE_NONE][] = array('tid' => $tid);
+      $node->workbench_access[$tid] = $tid;
+    }
+
+    $changed = $node->changed;
+
+    node_save($node);
+
+    // Fix $node->changed value.
+    db_update('node')
+            ->fields(array('changed' => $changed))
+            ->condition('nid', $node->nid)
+            ->execute();
+    $node->changed = $changed;
+  }
+}
+
+/**
+ * Remove all lead images.
+ *
+ * @param $node
+ *   A node object to modify.
+ * @param $context
+ *   Array.
+ *
+ * @ingroup actions
+ */
+function balk_custom_node_empty_lead_image_action(&$node, $context) {
+  $node->field_lead_image = NULL;
+
+  $changed = $node->changed;
+
+  node_save($node);
+
+  // Fix $node->changed value.
+  db_update('node')
+          ->fields(array('changed' => $changed))
+          ->condition('nid', $node->nid)
+          ->execute();
+  $node->changed = $changed;
+}
+
+/**
+ * Generates the settings form for node_assign_owner_action().
+ */
+function balk_custom_node_assign_term_action_form($context) {
+  $vocabulary = taxonomy_vocabulary_machine_name_load(variable_get('balk_custom_site_structure_vocab_name', 'site_struktur'));
+  $tree = taxonomy_get_tree($vocabulary->vid);
+
+  $tids = isset($context['tids']) ? $context['tids'] : array();
+
+  foreach ($tree as $tid => $term) {
+    $options[$term->tid] = str_repeat('--', $term->depth) . ' ' . $term->name;
+  }
+
+  $form['tids'] = array(
+      '#type' => 'select',
+      '#title' => t('Taxonomy terms'),
+      '#default_value' => $tids,
+      '#options' => $options,
+      '#multiple' => TRUE,
+      '#size' => 15,
+  );
+
+  return $form;
+}
+
+/**
+ * Saves settings form for balk_custom_node_assign_term_action().
+ */
+function balk_custom_node_assign_term_action_submit($form, $form_state) {
+  return array(
+      'tids' => $form_state['values']['tids']
+  );
+}
+
+/**
+ * Implements hook_views_pre_render().
+ *
+ * Rewrites the URLs for Tema nodes to link to their 'attached' node.
+ */
+function balk_custom_views_pre_render(&$view) {
+  if ($view->name == 'ballerup_taxonomy_term' && $view->current_display == 'block_4') {
+    foreach ($view->result as $key => &$result) {
+      if (!empty($result->field_field_external_link)) {
+        $result->field_field_lead_image[0]['rendered']['#path']['path'] = $result->field_field_external_link[0]['raw']['value'];
+      } elseif (!empty($result->field_field_attached_node)) {
+        $result->field_field_lead_image[0]['rendered']['#path']['path'] = 'node/' . $result->field_field_attached_node[0]['raw']['nid'];
+      }
+    }
+  } elseif ($view->name == 'campaigns' && $view->current_display == 'block_1') {
+    foreach ($view->result as $key => &$result) {
+     if (!empty($result->field_field_external_link)) {
+        $result->field_field_lead_image_1[0]['rendered']['#path']['path'] = $result->field_field_external_link[0]['raw']['value'];
+        $result->field_field_lead_image[0]['rendered']['#path']['path'] = $result->field_field_external_link[0]['raw']['value'];
+        $result->field_field_lead_image[0]['rendered']['#path']['options']=array();
+        $result->field_field_lead_image_1[0]['rendered']['#path']['options'] = array();  
+        }
+      else if($result->field_field_attached_node[0]['raw']['nid']){
+        $result->field_field_lead_image_1[0]['rendered']['#path']['path'] = 'node/'.$result->field_field_attached_node[0]['raw']['nid'];
+        $result->field_field_lead_image[0]['rendered']['#path']['path'] = 'node/'.$result->field_field_attached_node[0]['raw']['nid'];
+        $result->field_field_lead_image[0]['rendered']['#path']['options']=array();
+        $result->field_field_lead_image_1[0]['rendered']['#path']['options'] = array();
+      }
+    }
+  }
+}
+
+// -----------------------------------------------------------------------------
+// Custom media handling
+
+/**
+ * Implements hook_media_wysiwyg_allowed_view_modes_alter().
+ */
+function balk_custom_media_wysiwyg_allowed_view_modes_alter(&$view_modes, $file) {
+  $allowed_view_modes = _balk_custom_media_wysiwyg_allowed_view_modes();
+
+  // Restrict view modes available from the WYSIWYG embed screen.
+  $view_modes = array_intersect_key($view_modes, $allowed_view_modes);
+}
+
+/**
+ * Implements hook_media_format_form_prepare_alter().
+ */
+function balk_custom_media_format_form_prepare_alter(&$form, &$form_state, $file) {
+  // Translate WYSIWYG format options.
+  foreach ($form['options']['format']['#options'] as $key => $option) {
+    $form['options']['format']['#options'][$key] = t($option);
+  }
+
+  $form['options']['format']['#default_value'] = 'medium_ratio';
+}
+
+/**
+ * Returns the allowed wysiwyg view modes for Balk.
+ *
+ * Should be removed when http://drupal.org/node/1016376 gets fixed.
+ */
+function _balk_custom_media_wysiwyg_allowed_view_modes() {
+  return array(
+    'medium_ratio' => 'medium_ratio',
+    'small_ratio' => 'small_ratio',
+    'media_original' => 'media_original',
+  );
+}
+
+/**
+ * Implements hook_form_BASE_FORM_ID_alter().
+ *
+ * Adds our custom .js that removes width and height settings from CKEditor.
+ */
+function balk_custom_form_node_form_alter(&$form, $form_state) {
+  $form['#attached']['js'][] = drupal_get_path('module', 'balk_custom') . '/balk_custom.js';
+}
+
+function balk_custom_menu() {
+  $items['admin/config/media/julekort'] = array(
+      'title' => t('Christmas card '),
+      'page callback' => 'drupal_get_form',
+      'page arguments' => array('balk_custom_settings_form'),
+      'access arguments' => array('access administration pages'),
+      'type' => MENU_NORMAL_ITEM,
+  );
+  $items['julekort/%'] = array(
+      'title' => '',
+      'page callback' => 'balk_custom_view_christmas_card',
+      'page arguments' => array(1),
+      'access callback' => TRUE,
+      'type' => MENU_CALLBACK,
+  );
+
+  return $items;
+}
+
+function balk_custom_settings_form() {
+
+  $form = array();
+  $form['#attributes'] = array('enctype' => "multipart/form-data");
+  $form['christmas_settings'] = array(
+      '#type' => 'fieldset',
+      '#collapsible' => true,
+      '#collapsed' => false,
+      '#title' => t('Christmas card message')
+  );
+
+
+  $form['christmas_settings']['julekort_message'] = array(
+      '#title' => t('Custom message'),
+      '#default_value' => custom_balk_get_julekort_message(),
+      '#description' => t("Available tokens:[julekort:greeting_text],[julekort:to_email],[julekort:from_email],[julekort:to_name],[julekort:from_name]"),
+      '#type' => 'text_format',
+      '#format' => 'full_html'
+  );
+
+
+  return system_settings_form($form);
+}
+
+function custom_balk_get_julekort_message() {
+  $message = variable_get('julekort_message', '');
+  if (is_array($message))
+    return($message['value']);
+  else
+    return "";
+}
+
+
+function balk_custom_view_christmas_card($sid) {
+  $output = "";
+  $wfid = 34129;
+  if (!empty($sid)) {
+    $result = db_query("select cid,data from webform_submitted_data where nid= :d and md5(sid) = :s Order by cid asc", array(':d' => $wfid, ':s' => $sid))->fetchAll();
+    ;
+  }
+
+  if (!empty($result)) {
+    $fid = variable_get("christmas_card_fid", "");
+    $data = array();
+
+    $data['to_name'] = $result[0]->data;
+    $data['to_email'] = $result[2]->data;
+    $data['from_name'] = $result[1]->data;
+
+    $data['from_email'] = $result[3]->data;
+    $data['greeting_text'] = $result[4]->data;
+
+    $options['julekort'] = $data;
+    $message = variable_get("julekort_message");
+    $output.= nl2br( token_replace($message['value'], $options) );
+  }
+  return $output;
+}
+
+
+

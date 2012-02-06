@@ -1,0 +1,6 @@
+name = Rotating Banner Extra Settings
+description = "Extra settings for the Rotating Banner module."
+core = 7.x
+version = 1.0
+dependencies[] = rotating_banner
+package = Headnet

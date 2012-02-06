@@ -1,0 +1,415 @@
+<?php
+
+/**
+ * Borger.dk v1.0 module by Steven Snedker, ss@headnet.dk, Oct 28 2011
+ *
+ * We use the rules module. Because it may be the future
+ * http://drupal.org/node/764558
+ * http://drupal.org/node/1217078
+ * 
+ * Yet it makesfor a bit of hodge podge code. Some is here in the module. Another part is in the rules UI
+ * 
+ * At the end of this document you'll find the rules and some discussion.
+ *  
+ * TODO:
+ * make the number of articles updated per cron run user selectable. As it is now only one article gets updated.
+ * have only one rule instead of two rules
+ * 
+ */
+
+/*
+ * Implements form_alter()
+ */
+function borgerdk_form_alter(&$form, &$form_state, $form_id) {
+ // print_r($form_id);
+  switch ($form_id) {
+    // We only intervene on node form for a new node of the right node type
+    
+    case 'contentpage_node_form' :
+
+    // $naturlignode = node_load(26856);
+    // $pumpetnode = node_load(33572);
+    // dpr($naturlignode);
+    // dpr($pumpetnode);
+    // dpr($form['field_borger_url']);
+      
+    
+    if ($form['field_borger_url']['da']['0']['value']['#default_value'] || $form['field_borger_url']['und']['0']['value']['#default_value']) {
+      // v($form['field_borger_url']);
+      // if the article has a permalink, make title+manchet+body inaccessible and write some help text.
+      
+      $borgerurl = $form['field_borger_url']['da']['0']['value']['#default_value'];
+      if (!$borgerurl) {
+        $borgerurl = $form['field_borger_url']['und']['0']['value']['#default_value'];
+      }
+      $borgerurltext = t('You really should edit this at borger.dk!');
+      $borgerurloptions = array('attributes' => array('class'=>'readonlywarning', 'title'=>t('Edit at borger.dk')));
+      $borgerlink = l($borgerurltext, $borgerurl, $borgerurloptions);
+      
+      $form['field_borger_url']['da']['0']['value']['#attributes']['disabled'] = TRUE;
+      $form['field_borger_url']['und']['0']['value']['#attributes']['disabled'] = TRUE;
+          
+      $form['title']['#attributes']['disabled'] = TRUE;
+      $form['title']['#description'] = $borgerlink;
+
+      $form['field_resume_long']['und']['0']['#attributes']['disabled'] = TRUE;
+      $form['field_resume_long']['und']['0']['#description'] = $borgerlink;
+
+      $form['field_resume_long']['da']['0']['#attributes']['disabled'] = TRUE;
+      $form['field_resume_long']['da']['0']['#description'] = $borgerlink;
+
+      $form['body']['und']['0']['#attributes']['disabled'] = TRUE;
+      $form['body']['und']['0']['#description'] = $borgerlink;
+      
+      $form['body']['da']['0']['#attributes']['disabled'] = TRUE;
+      $form['body']['da']['0']['#description'] = $borgerlink;
+    }
+
+ /*   if (!$form['#node']->field_article_form_tags) {
+      // if no tags from the form vocab are present in the node, we suggest a few
+      $textcorpus = $form['field_resume_long']['da']['0']['#default_value'] . ' ' . $form['body']['da']['0']['#default_value'];
+      // $form['#node']->field_article_form_tags = autotag_node($textcorpus);
+    }*/
+
+    break; // switch ($form_id)
+    
+    case 'borger_dk_permalink_node_form' :
+      // We dream up a title. Then we hide the title field.
+      // dpr($form);
+      $form['title']['#default_value'] = 'Et permalink til borger.dk';
+      $form['title']['#access'] = FALSE;
+      $form['body']['#access'] = FALSE;
+      $form['field_related_tema']['#access'] = FALSE;
+    break; // borgerdk_url
+    
+  }
+}
+
+
+function borgerdk_add_as_node($artikel_id_result, $cron = FALSE, $permalinknode) {
+// People submit a NEW node of type article or borgerdk_url
+// It's i picked up by the rule admin/config/workflow/rules/reaction/manage/rules_borger_dk_lookup_by_url
+// The rule does a REST-request and returns $artikel_id_result (title+manchet+body from Borger.dk)
+// That is what we want to turn into a node
+// What if we've already got a node with that $permalink? (function borgerdk_get_nid_by_permalink($permalink) has the answer to that question)
+// I say: let's kick the user to that node/edit
+  
+  global $user;
+  
+  $translation = borgerdk_field_translations ();
+
+  $permalink = $artikel_id_result->GetArticleByIDResult->ArticleUrl;
+  $existing_article_nid = borgerdk_get_nid_by_permalink($permalink);
+  
+  /* print 'permalinknode:';
+  dpr($permalinknode);
+  print 'ged:';
+  dpr($ged);
+  
+  print 'data:';
+  dpr($artikel_id_result);
+  die('et øjeblik'); */
+  
+  if ($existing_article_nid) {
+    // drupal_set_message('Already on our system as node ' . $existing_article_nid . '. We will load it!', 'warning');
+    $node = node_load($existing_article_nid);
+  } else {
+  // drupal_set_message('Does not exist on the system, we will make a new one!', 'notice');
+   // die('Saa langt, saa godt');
+  // create a new node object
+  $node = new stdClass();
+  $node->type = 'contentpage';
+  $node->created = time();
+  $node->changed= time();
+  $node->status = 1;
+  $node->promote = 1;
+  $node->sticky = 0;
+  $node->uid = $user->uid;
+  $node->language = 'da';
+  $node->timestamp = time();
+  $node->revision = 0;
+  $node->comment = 0;
+
+  // Set the access slightly
+  $node->workbench_access_fields = $permalinknode->workbench_access_fields;
+  $node->workbench_access_scheme = $permalinknode->workbench_access_scheme;
+  $node->workbench_access_column = $permalinknode->workbench_access_column;
+  $node->workbench_access_language = $permalinknode->workbench_access_language;
+  $node->field_site_structure = $permalinknode->field_site_structure;
+  $node->workbench_access_id = $permalinknode->workbench_access_id;
+  $node->workbench_access = $permalinknode->workbench_access;
+  }
+
+  // Set the title
+  $node->title = $artikel_id_result->GetArticleByIDResult->ArticleTitle;
+  
+  // Handle the rest of the fields
+  foreach ($translation as $drupal_field_name => $borgerdk_field_name) {
+    $value = $artikel_id_result->GetArticleByIDResult->$borgerdk_field_name;
+    $format = 'full_html';
+    $node->$drupal_field_name = array('da' => array(0 => array('value' => $value, 'format'=>$format)));
+    if ($drupal_field_name != 'body') {
+      $node->$drupal_field_name = array('und' => array(0 => array('value' => $value, 'format'=>$format)));
+    }
+  }
+    
+   $newnode = node_submit($node);
+   node_save($node);
+   
+   if ($existing_article_nid && !$cron) {
+    // Let's avoid dupes by kicking users to a better place to edit
+    drupal_set_message('Eksisterer allerede ' . $existing_article_nid . '. Rediger her i stedet!', 'warning');
+    drupal_goto('node/' . $existing_article_nid . '/edit');
+  }
+  
+  if(!$cron) {
+    // drupal_set_message('Udfyld venligst feltet PLACERING', 'status');
+    drupal_goto('node/' . $newnode->nid  . '/edit');
+  }
+}
+
+function borgerdk_update_borgerdk_derived_articles() {
+  // this function should write a permalink to watchdog. This should trigger a rule that fetches a borgerdk article ferom borger.dk
+  $all_borgerdk_articles = borgerdk_all_borgerdk_articles();
+  $all_borgerdk_articles = return_as_big_fat_array($all_borgerdk_articles);
+  // dpr($all_borgerdk_articles);
+  $update_the_next_one = 0;
+  
+  // drupal_set_message('Loop starts with $update_the_next_one = ' . $update_the_next_one . ' Last updated nid is ' . variable_get('last_updated_borgerdk_article_nid', 100));
+  
+   
+  foreach($all_borgerdk_articles as $borgerdk_article) {
+    
+    // drupal_set_message('Behandler ' . $borgerdk_article->entity_id);
+    
+    if ($update_the_next_one == 1 || variable_get('last_updated_borgerdk_article_nid', 100) < $borgerdk_article->entity_id) {
+     watchdog('fetch_borgerdk_article_by_permalink', $borgerdk_article->field_borger_url_value);
+     variable_set('last_updated_borgerdk_article_nid', $borgerdk_article->entity_id);
+     // drupal_set_message('Ask watchdog to fetch ' . $borgerdk_article->field_borger_url_value . ' and set this as the last updated article nid ' . $borgerdk_article->entity_id);
+     // We got what we came for, so we
+     break;
+    }
+    
+    if (variable_get('last_updated_borgerdk_article_nid', 100) ==  $borgerdk_article->entity_id) {
+      $update_the_next_one = 1; // $all_borgerdk_articles[$i]->entity_id;
+    }
+  }
+  
+  // drupal_set_message('Loop finished with $update_the_next_one = ' . $update_the_next_one . ' and $borgerdk_article->entity_id = ' . $borgerdk_article->entity_id. ' Last updated nid is ' . variable_get('last_updated_borgerdk_article_nid', 100));
+  
+  // at last possible borger_article_nid?
+  if (variable_get('last_updated_borgerdk_article_nid', 100) == end(array_keys($all_borgerdk_articles))) {
+    // then start over
+      variable_set('last_updated_borgerdk_article_nid', 0);
+  }
+
+}
+
+function return_as_big_fat_array($object){
+  $big_fat_array = array();
+    
+    if ($object) {
+      while ($record = $object->fetchObject()) {
+        // v($record);
+        $big_fat_array[$record->entity_id] = $record;
+      }
+    }
+  return $big_fat_array;
+  
+}
+function borgerdk_all_borgerdk_articles() {
+  $all_borgerdk_articles =  db_select('field_data_field_borger_url', 'entity_id')
+    ->fields('entity_id')
+    ->condition('entity_type', 'node', 'LIKE')
+    ->condition('bundle', 'contentpage', 'LIKE')
+    ->orderby('entity_id', 'ASC')
+    ->execute();
+    return $all_borgerdk_articles;
+}
+
+function borgerdk_get_nid_by_permalink($permalink) {
+  // hvis article med borger_url == $permalink, returnér nid ellers returner NULL
+  $unikt_id = substr(strstr($permalink, 'PageId='), 7 , 36);
+  // drupal_set_message('get nid by permalink siger permalink ' . $permalink . ' unikt_id ' . $unikt_id);
+  $nid =  db_select('field_data_field_borger_url', 'entity_id')
+    ->fields('entity_id')
+    ->condition('entity_type', 'node', 'LIKE')
+    ->condition('bundle', 'contentpage', 'LIKE')
+    ->condition('field_borger_url_value', '%'.$unikt_id.'%', 'LIKE')
+    ->execute()
+    ->fetchAssoc();
+   //  drupal_set_message('database siger ' . $nid['entity_id'] . ' dpr ' . dpr($nid));
+  return $nid['entity_id'] ? $nid['entity_id'] : FALSE;
+}
+
+function borgerdk_permalink_true($url) {
+  $url = $url['url'];
+  // dpr($url);
+  // die('virkede det?');
+  if (strpos($url,'BorgerDK/Permalink/permalink.aspx?PageId=')) {
+    // drupal_set_message('Horray! Its a permalink!');
+    return TRUE;
+  } else {
+    drupal_set_message($url . t(' is not a permalink!'), 'error');
+    drupal_set_message(t('Real permalinks look like this: https://www.borger.dk/_layouts/BorgerDK/Permalink/permalink.aspx?PageId=58b0ac85-2f2b-4c7f-bb05-5cd85369774f&KommuneId=101'), 'notice');
+    drupal_set_message(t('You get them by rightclicking on the link in the uppermost right corner on some relevant borger.dk page.'), 'notice');
+    drupal_set_message(t('Try again!'), 'notice');
+    drupal_goto('node/add/borger-dk-permalink');
+  }
+}
+
+function borgerdk_field_translations (){
+  $translation = array(
+    // 'title' => 'ArticleTitle' is handled elsewhere
+    'field_borger_url' => 'ArticleUrl',
+    'field_resume_long' => 'ArticleHeader',
+    'body' => 'Content',
+  );
+  return $translation;
+}
+
+function borgerdk_cron () {
+// runs through all articles with a valid borger-url and updates them, uncomment for-loop to nab 10 articles per cron run
+// for ($i = 1; $i <= 10; $i++) {
+borgerdk_update_borgerdk_derived_articles();
+// watchdog('borgerdk', 'Updated an article');
+// }
+}
+
+
+/* NOTES IN DANISH AND RULES
+  
+  indholdtype: article (selv artiklen)
+                   article_borgerdk (en indholdstype med ét felt et permalink/en url til borger.dk
+ 
+Når article_borgerdk submittes griber en rule fat
+og hapser artikel-objektet fra borger_dk
+ 
+loader noden ud fra permalinket (hvis denne ikke eksisterer, laves automatisk en tom node)
+ 
+Noden fyldes med data fra borgerdk-objektet
+der laves en node_submit og der drupal_goto's node/nid/edit
+ 
+Herefter er der muligheder for at redigere, slette, lægge lokale overskrifter, lokale indledninger, lokale tags på.
+ 
+Når den submittes, vil autotaging og Form 2.1 spring ind på scenen og levere en stooor side med checkboxes.
+ 
+Hvis den skal autotagges, skal der være et ekstra tag field, der populeres med de relevante termer fra form vokabulariet. Form-vokabulariet replikeres over hvert halve år eller sådan.
+ 
+Form_alter låser også for redigeringn af titel+manchet+brødtekst, når borger_url er udfyldt. Der er et rødt irettesættende link nær manchet+brødtekstfelt, der viser over til borger.dk "Ret i originalen, fister".
+ 
+Cron? Skal opdatere alle borger_url artikler en gang i døgnet.
+
+Hvorfor denne løsning cron-løsning?
+Der er kun to kald, der returnerer noget med updated
+
+2.1 GetAllArticles
+Denne operation returnerer alle artikler på borger.dk uden selve artiklernes indhold. Nedenstående tabeller
+viser input og output til forespørgslen.
+
+På dansk: vi kan få 10000 artikler og så selv isolere de 50, der er opdateret siden sidst. Vi kan så isolere dem, vi har i forvejen (1-2) og opdatere dem.
+Det kræver at vi også begynder at lagre borger.dks artikel-id lokalt. Medmindre vi vil kalde en url->id translation i et ekstra skridt.
+
+2.8 GetArticlesByIDs
+Denne operation returnerer artikler på baggrund af en liste med artikel-ID er.
+På dansk: den sædvanlige omgang. Vi sender ID og får hele artiklen tilbage
+
+Løsning: Vi får max. 100 artikler med borgerdk_url. Dem må vi opdatere løbende via cron.
+Race condition? Ligegyldigt. Cron vil ændre i titel+manchet+body, noget brugere generelt ikke har adgang til.
+
+
+RULES
+/admin/config/workflow/rules
+skal have
+
+{ "rules_borger_dk_lookup_by_url" : {
+    "LABEL" : "Borger.dk lookup by permalink",
+    "PLUGIN" : "reaction rule",
+    "ACTIVE" : false,
+    "REQUIRES" : [ "rules", "php", "wsclient" ],
+    "ON" : [ "node_insert" ],
+    "IF" : [
+      { "entity_has_field" : { "entity" : [ "node" ], "field" : "field_borger_permalink" } }
+    ],
+    "DO" : [
+      { "data_create" : {
+          "USING" : {
+            "type" : "wsclient_borger_dk_GetArticleIDByUrl",
+            "param_url" : "[node:field-borger-permalink]"
+          },
+          "PROVIDE" : { "data_created" : { "artikel_id_fra_url" : "Artikel ID fra URL" } }
+        }
+      },
+      { "php_eval" : { "code" : "borgerdk_permalink_true($artikel_id_fra_url);" } },
+      { "wsclient_borger_dk_GetArticleIDByUrl" : {
+          "USING" : { "param_parameters" : [ "artikel-id-fra-url" ] },
+          "PROVIDE" : { "result" : { "artikel_id_fra_url_resultat" : "Artikel ID fra URL resultat" } }
+        }
+      },
+      { "data_create" : {
+          "USING" : {
+            "type" : "wsclient_borger_dk_GetArticleByID",
+            "param_articleID" : [ "artikel-id-fra-url-resultat:GetArticleIDByUrlResult:ArticleID" ],
+            "param_municipalityCode" : "101"
+          },
+          "PROVIDE" : { "data_created" : { "artikel_id" : "Artikel ID" } }
+        }
+      },
+      { "wsclient_borger_dk_GetArticleByID" : {
+          "USING" : { "param_parameters" : [ "artikel-id" ] },
+          "PROVIDE" : { "result" : { "artikel_id_resultat" : "Artikel ID resultat" } }
+        }
+      },
+      { "php_eval" : { "code" : "\/\/ drupal_set_message('S\u00e5 spiller vi bolden videre til borgerdk_add_as_node($artikel_id_resultat), FALSE, $node');\r\nborgerdk_add_as_node($artikel_id_resultat, FALSE, $node);" } }
+    ]
+  }
+}
+
+
+
+{ "rules_update_borger_dk_derived_articles" : {
+    "LABEL" : "Update borger.dk derived articles",
+    "PLUGIN" : "reaction rule",
+    "REQUIRES" : [ "rules", "wsclient", "php" ],
+    "ON" : [ "watchdog" ],
+    "IF" : [
+      { "data_is" : {
+          "data" : [ "log-entry:type" ],
+          "value" : "fetch_borgerdk_article_by_permalink"
+        }
+      }
+    ],
+    "DO" : [
+      { "data_create" : {
+          "USING" : {
+            "type" : "wsclient_borger_dk_GetArticleIDByUrl",
+            "param_url" : [ "log-entry:message" ]
+          },
+          "PROVIDE" : { "data_created" : { "artikel_id_fra_url" : "Artikel ID fra URL" } }
+        }
+      },
+      { "wsclient_borger_dk_GetArticleIDByUrl" : {
+          "USING" : { "param_parameters" : [ "artikel-id-fra-url" ] },
+          "PROVIDE" : { "result" : { "artikel_id_fra_url_resultat" : "Artikel ID fra URL resultat" } }
+        }
+      },
+      { "data_create" : {
+          "USING" : {
+            "type" : "wsclient_borger_dk_GetArticleByID",
+            "param_articleID" : [ "artikel-id-fra-url-resultat:GetArticleIDByUrlResult:ArticleID" ],
+            "param_municipalityCode" : "101"
+          },
+          "PROVIDE" : { "data_created" : { "artikel_id" : "Artikel ID" } }
+        }
+      },
+      { "wsclient_borger_dk_GetArticleByID" : {
+          "USING" : { "param_parameters" : [ "artikel-id" ] },
+          "PROVIDE" : { "result" : { "artikel_id_resultat" : "Artikel ID resultat" } }
+        }
+      },
+      { "php_eval" : { "code" : "drupal_set_message('S\u00e5 spiller vi bolden videre til borgerdk_add_as_node($artikel_id_resultat), TRUE');\r\nborgerdk_add_as_node($artikel_id_resultat, TRUE);" } }
+    ]
+  }
+}
+
+*/

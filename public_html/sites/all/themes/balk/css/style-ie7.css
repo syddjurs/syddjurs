@@ -1,0 +1,19 @@
+
+ul li.expanded,
+ul li.collapsed,
+ul li.leaf {
+  list-style-image: none;
+}
+
+#search-block-form .form-submit {
+  overflow: visible;
+}
+
+#zone-header {
+  z-index: 100;
+}
+
+.jump-quickly .form-submit {
+  width: auto;
+  overflow: visible;
+}

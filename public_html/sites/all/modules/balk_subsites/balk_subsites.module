@@ -1,0 +1,378 @@
+<?php
+
+/**
+ * @file
+ * Subsites and Navigation code for Balk.
+ */
+
+/**
+ * Implements hook_permission().
+ */
+function balk_subsites_permission() {
+  $permissions = array(
+    'administer subsites' => array(
+      'title' => t('Administer Ballerup subsites'),
+    ),
+  );
+
+  return $permissions;
+}
+
+/**
+ * Implements hook_menu().
+ */
+function balk_subsites_menu() {
+  $items['manage-subsite-menu/%menu'] = array(
+    'title' => 'Customize subsites menu',
+    'page callback' => 'drupal_get_form',
+    'page arguments' => array('balk_subsites_menu_overview_form', 1),
+    'title callback' => 'menu_overview_title',
+    'title arguments' => array(1),
+    'access arguments' => array('administer menu'),
+    'file' => 'balk_subsites.admin.inc',
+  );
+  return $items;
+}
+
+/**
+ * Implements hook_admin_paths().
+ */
+function balk_subsites_admin_paths() {
+  $paths = array(
+    'manage-subsite-menu/*' => TRUE,
+    'manage-subsite-menu/*/*' => TRUE,
+  );
+  return $paths;
+}
+
+/**
+ * Implements hook_theme().
+ */
+function balk_subsites_theme() {
+  return array(
+    'balk_subsites_menu_overview_form' => array(
+      'file' => 'balk_subsites.admin.inc',
+      'render element' => 'form',
+    ),
+  );
+}
+
+/**
+ * Implements hook_form_alter().
+ */
+function balk_subsites_form_alter(&$form, &$form_state, $form_id) {
+//  echo $form_id;
+//  dsm($form);
+}
+
+/**
+ * Implements hook_form_BASE_FORM_ID_alter().
+ */
+function balk_subsites_form_node_form_alter(&$form, $form_state) {
+  if (isset($form['field_site_structure'])) {
+    $form['field_site_structure'][LANGUAGE_NONE]['#size'] = 10;
+  }
+
+  if (!isset($form['menu'])) {
+    return;
+  }
+
+  // Add AJAX handling for the site structure field.
+  if (isset($form['field_site_structure'])) {
+
+    $form['field_site_structure'][LANGUAGE_NONE]['#ajax'] = array(
+      'callback' => 'balk_subsites_field_site_structure_callback',
+      'wrapper' => 'balk-subsites-menu-link-parent-wrapper',
+    );
+
+    $form['menu']['link']['parent']['#prefix'] = '<div id="balk-subsites-menu-link-parent-wrapper">';
+    $form['menu']['link']['parent']['#suffix'] = '</div>';
+
+    $form['field_site_structure']['#attributes']['class'][] = 'clearfix';
+  }
+
+  // Restrict values for the Menu parent selection.
+  $allowed_terms = array();
+  if (!isset($form_state['values'])) {
+    if (empty($form['field_site_structure'][LANGUAGE_NONE]['#default_value'])) { // If we are adding a node.
+      $allowed_sections = workbench_access_get_user_tree();
+      foreach ($allowed_sections as $tid => $section) {
+        $allowed_terms[] = $section['name'];
+      }
+    }
+    else { // If we are editing a node.
+      $taxonomy_terms = $form['field_site_structure'][LANGUAGE_NONE]['#default_value'];
+      foreach ($taxonomy_terms as $key => $tid) {
+        $allowed_terms[] = ltrim($form['field_site_structure'][LANGUAGE_NONE]['#options'][$tid], '-');
+      }
+    }
+  }
+  else { // If we are on a reloaded form, for example if it failed validation.
+    $taxonomy_terms = $form_state['values']['field_site_structure'][LANGUAGE_NONE];
+    foreach ($taxonomy_terms as $key => $term) {
+      $allowed_terms[] = ltrim($form['field_site_structure'][LANGUAGE_NONE]['#options'][$term['tid']], '-');
+    }
+  }
+
+  $allowed_menu_items = _balk_subsites_get_allowed_menu_items($allowed_terms, variable_get('balk_subsites_main_navigation_menu', 'main-menu'));
+
+  $allowed_menu_keys = array();
+  foreach ($allowed_menu_items as $mlid) {
+    $allowed_menu_keys['main-menu:' . $mlid] = 'main-menu:' . $mlid;
+  }
+
+  $form['menu']['link']['parent']['#options'] = array_intersect_key($form['menu']['link']['parent']['#options'], $allowed_menu_keys);
+}
+
+/**
+ * AJAX callback for the site_structure field change event.
+ *
+ * Selects just the menu link parent dropdown to be returned for re-rendering.
+ */
+function balk_subsites_field_site_structure_callback($form, $form_state) {
+  return $form['menu']['link']['parent'];
+}
+
+/**
+ * Implements hook_form_FORM_ID_alter().
+ */
+function balk_subsites_form_workbench_access_user_form_alter(&$form, &$form_state, $form_id) {
+  $active = workbench_access_get_active_tree();
+
+  // Tweak the Workbench Access 'My sections' page to link subsite section
+  // to their taxonomy term edit page.
+  foreach (element_children($form['sections']) as $parent) {
+    foreach (element_children($form['sections'][$parent]) as $access_id) {
+      if ($active['tree'][$access_id]['depth'] != 0) {
+        $section_tids[$parent][] = $access_id;
+      }
+    }
+  }
+
+  foreach ($section_tids as $parent => $child_section_tids) {
+    $query = new EntityFieldQuery();
+    $query->entityCondition('entity_type', 'taxonomy_term')
+      ->entityCondition('entity_id', $child_section_tids, 'IN')
+      ->fieldCondition('field_is_subsite', 'value', '1', '=');
+
+    $result = $query->execute();
+
+    foreach ($result['taxonomy_term'] as $tid => $term) {
+      $mlid = db_select('menu_link');
+      $section = $active['tree'][$tid];
+
+      $query = db_select('menu_links', 'ml', array('fetch' => PDO::FETCH_ASSOC));
+      $query
+        ->condition('ml.menu_name', 'main-menu')
+        ->condition('ml.link_title', $section['name'], '=')
+        ->fields('ml', array('mlid'));
+      $menu_item_mlid = $query->execute()->fetchField();
+
+      if ($form['sections'][$parent][$tid]['#type'] == 'checkbox') {
+        $form['sections'][$parent][$tid]['#title'] = str_repeat('-', $section['depth']) . ' ' . $section['name'] . ' :: ' . l('Settings', 'taxonomy/term/' . $tid . '/edit') . ' :: ' . l('Structure', 'manage-subsite-menu/main-menu/' . $menu_item_mlid);
+      }
+      elseif ($form['sections'][$parent][$tid]['#type'] == 'markup') {
+        $form['sections'][$parent][$tid]['#markup'] = str_repeat('-', $section['depth']) . ' ' . $section['name'] . ' :: ' . l('Settings', 'taxonomy/term/' . $tid . '/edit') . ' :: ' . l('Structure', 'manage-subsite-menu/main-menu/' . $menu_item_mlid) . '<br />';
+      }
+    }
+  }
+}
+
+/**
+ * Implements hook_form_FORM_ID_alter().
+ */
+function balk_subsites_form_taxonomy_form_term_alter(&$form, &$form_state, $form_id) {
+  // We're not using term relations so hide that fieldset.
+  $form['relations']['#access'] = FALSE;
+
+  // Show the term path settings only to roles with the 'administer subsites'
+  // permission.
+  $form['path']['#access'] = user_access('administer subsites');
+}
+
+/**
+ * Implements hook_field_access().
+ */
+function balk_subsites_field_access($op, $field, $entity_type, $entity, $account) {
+  if ($entity_type == 'taxonomy_term' && $op == 'edit') {
+    // Hide the 'Is subsite' field if the current user doesn't have access to it.
+    if ($field['field_name'] == 'field_is_subsite') {
+      return user_access('administer subsites', $account);
+    }
+
+    // Hide the 'Logo' and 'Banners' fields if this term is not a subsite.
+    $is_subsite = reset(field_get_items($entity_type, $entity, 'field_is_subsite'));
+    if (!$is_subsite['value'] && ($field['field_name'] == 'field_subsite_logo' || $field['field_name'] == 'field_subsite_banner')) {
+      return FALSE;
+    }
+  }
+
+  return TRUE;
+}
+
+/**
+ * Returns a list of menu items that are allowed to be assigned by a user for a
+ * particular node.
+ *
+ * @param array $terms
+ *   An array of taxonomy terms, keyed by their term_id.
+ * @param string $menu_name
+ *   Machine name of the menu.
+ */
+function _balk_subsites_get_allowed_menu_items($terms = array(), $menu_name = 'main-menu') {
+  $allowed_menu_items = array();
+
+  if (!empty($terms)) {
+    // Get first and second level menu items (those that match taxonomy terms).
+    $query = db_select('menu_links', 'ml', array('fetch' => PDO::FETCH_ASSOC));
+    $query
+      ->condition('ml.menu_name', $menu_name)
+      ->condition('ml.link_title', $terms, 'IN')
+      ->condition('ml.depth', array('1', '2'), 'IN')
+      ->fields('ml', array('mlid'));
+
+    $main_items = $query->execute()->fetchCol();
+
+    if (!empty($main_items)) {
+      // Get all the children for those menu items.
+      $query = db_select('menu_links', 'ml', array('fetch' => PDO::FETCH_ASSOC));
+      $query
+        ->condition(db_or()->condition('ml.p1', $main_items, 'IN')->condition('ml.p2', $main_items, 'IN'))
+        ->fields('ml', array('mlid'));
+
+      $children_items = $query->execute()->fetchCol();
+
+      $allowed_menu_items = array_merge($main_items, $children_items);
+    }
+  }
+
+  return $allowed_menu_items;
+}
+
+/**
+ * Implements hook_page_delivery_callback_alter().
+ *
+ * This is the only hook that occurs after the page callback, but before
+ * hook_page_build (when blocks are added). We're using this hook for its
+ * timing, not its data.
+ *
+ * @todo: move this hunk to another hook as it's not really needed here anymore.
+ */
+function balk_subsites_page_delivery_callback_alter() {
+  $active_trail = menu_get_active_trail();
+
+  // Add a global subsite context so balk subsites can display the logo
+  // and banner blocks based on it.
+  if (isset($active_trail[2]) && $active_trail[2]['router_path'] == 'taxonomy/term/%') {
+    $term = explode('/', $active_trail[2]['link_path']);
+    $tid = end($term);
+
+    $query = new EntityFieldQuery();
+    $query->entityCondition('entity_type', 'taxonomy_term')
+      ->entityCondition('entity_id', $tid, '=')
+      ->fieldCondition('field_is_subsite', 'value', '1', '=');
+
+    if ($result = $query->execute()) {
+      balk_subsites_set_context($tid);
+    }
+  }
+}
+
+/**
+ * Set context information for Balk subsites.
+ *
+ * @param integer $tid
+ *
+ * @return array
+ */
+function balk_subsites_set_context($tid = NULL) {
+  $balk_subsite = &drupal_static(__FUNCTION__, array());
+
+  if (!empty($tid)) {
+    $term = taxonomy_term_load($tid);
+
+    if ($term) {
+      if ($logo = field_get_items('taxonomy_term', $term, 'field_subsite_logo')) {
+        $balk_subsite['tid'] = $term->tid;
+        $balk_subsite['logo'] = $logo;
+      }
+      if ($banner = field_get_items('taxonomy_term', $term, 'field_subsite_banner')) {
+        $balk_subsite['banner'] = $banner;
+      }
+    }
+  }
+
+  return $balk_subsite;
+}
+
+/**
+ * Get context information for Balk subsites.
+ */
+function balk_subsites_get_context() {
+  return balk_subsites_set_context();
+}
+
+/**
+ * Implements hook_block_info().
+ */
+function balk_subsites_block_info() {
+  $blocks['subsite_header'] = array(
+    'info' => t('Subsite Header'),
+    'cache' => DRUPAL_CACHE_PER_PAGE,
+  );
+  return $blocks;
+}
+
+/**
+ * Implements hook_block_view().
+ */
+function balk_subsites_block_view($delta = '') {
+  $block_content = NULL;
+
+  if ($balk_subsite = balk_subsites_get_context()) {
+    $output = '';
+
+    $variables = array(
+      'style_name' => 'thumbnail-subsite-logo',
+      'path' => $balk_subsite['logo'][0]['uri'],
+      'alt' => '',
+      'title' => '',
+    );
+    $output .= '<div class="subsite-logo"><a href="' . url('taxonomy/term/' . $balk_subsite['tid']) . '">' . theme('image_style', $variables) . '</a></div>';
+
+    $banner_output = '';
+	if(!empty($balk_subsite['banner'])){
+    foreach ($balk_subsite['banner'] as $subsite_banner) {
+      $variables = array(
+        'style_name' => 'thumbnail-subsite-banner',
+        'path' => $subsite_banner['uri'],
+        'alt' => '',
+        'title' => '',
+      );
+      $banner_output .= '<div class="subsite-banner">' . theme('image_style', $variables) . '</div>';
+    }
+	}
+    $output .= '<div class="subsite-banner-wrapper"><div class="subsite-banner-content">' . $banner_output . '</div></div>';
+
+    $output = '<div class="subsite-content-top clearfix">' . $output . '</div>';
+
+    $block_content = array(
+      '#type' => 'markup',
+      '#markup' => $output,
+      '#attached' => array(
+        'css' => array(
+          drupal_get_path('module', 'balk_subsites') . '/balk_subsites.css',
+        ),
+        'js' => array(
+          drupal_get_path('module', 'balk_subsites') . '/jquery.cycle.all.min.js',
+          drupal_get_path('module', 'balk_subsites') . '/balk_subsites.js',
+        ),
+      ),
+    );
+  }
+
+  $block['subject'] = NULL;
+  $block['content'] = $block_content;
+
+  return $block;
+}

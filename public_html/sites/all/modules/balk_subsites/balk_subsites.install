@@ -1,0 +1,16 @@
+<?php
+
+/**
+ * @file
+ * Install, update and schema for balk_subsites.
+ */
+
+/**
+ * Implements hook_install().
+ */
+function balk_subsites_install() {
+  db_update('system')
+    ->fields(array('weight' => 5))
+    ->condition('name', 'balk_subsites', '=')
+    ->execute();
+}

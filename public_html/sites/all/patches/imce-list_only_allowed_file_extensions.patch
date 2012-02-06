@@ -1,0 +1,16 @@
+Index: imce.page.inc
+===================================================================
+--- imce.page.inc	(revision 813)
++++ imce.page.inc	(working copy)
+@@ -965,6 +965,11 @@
+ 
+   while (($file = readdir($handle)) !== FALSE) {
+ 
++    // Include only allowed file extensions.
++    if (!in_array(substr($file, -3), array('pdf', 'zip', 'doc', 'docx'))) {
++      continue;
++    }
++    
+     // Do not include dot files and folders
+     if (substr($file, 0, 1) === '.') {
+       continue;

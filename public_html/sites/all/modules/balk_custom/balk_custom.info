@@ -1,0 +1,5 @@
+name = "Balk Custom"
+description = "Custom code for Balk."
+package = "Balk"
+core = 7.x
+version = "7.x-1.0"

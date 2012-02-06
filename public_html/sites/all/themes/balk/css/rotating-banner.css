@@ -1,0 +1,102 @@
+
+.content .panel-homepage .panel-region-lead {
+  width: 960px;
+  height: 280px;
+  margin: 0;
+  border-bottom: 1px solid #d9d9d9;
+  position: relative;
+}
+
+.panel-homepage .panel-region-lead .panel-pane {
+  margin-top: 0;
+}
+
+.content .panel-homepage .panel-region-lead .rb-slides {
+  height: 280px;
+  background: url('../images/bg-rb-slide.png') no-repeat 0 0;
+}
+
+.content .panel-homepage .panel-region-lead .rb-link-regular-image {
+  width: 960px;
+}
+
+.content .panel-homepage .panel-region-lead .rb-regular-image {
+  width: 340px;
+  height: 192px;
+  position: absolute;
+  top: 61px;
+  right: 10px;
+  -moz-box-shadow: 0 0 5px #888;
+  -webkit-box-shadow: 0 0 5px #888;
+  box-shadow: 0 0 5px #888;
+}
+
+.panel-homepage .panel-region-lead div.contextual-links-wrapper {
+  right: 40px;
+}
+
+.panel-homepage .panel-region-lead .rb-textbox-wrapper {
+  white-space: normal;
+  font-family: 'MorganAvecRegular';
+}
+
+.panel-homepage .panel-region-lead .layout-wrapper.top-left {
+  width: 450px;
+  margin: 50px 0 0 10px;
+  
+}
+
+.panel-homepage .panel-region-lead .rb-textbox-type-header {
+  margin-bottom: 20px;
+  font-size: 36px;
+  font-weight: normal;
+  line-height: 40px;
+  color: #333333;
+}
+
+.panel-homepage .panel-region-lead .rb-textbox-type-text {
+  font-size: 16px;
+}
+
+.panel-homepage .panel-region-lead .blue-button {
+  height: 30px;
+  border: 1px solid #c6d4db;
+  margin-top: 10px;
+  padding: 0 10px;
+  display: inline-block;
+  font-family: Verdana;
+  font-size: 12px;
+  line-height: 30px;
+  color: #fff;
+  background: url('../images/bg-blue-button.png') repeat-x 0 0;
+  text-transform: uppercase;
+}
+
+.panel-homepage .panel-region-lead .controls {
+  position: absolute;
+  top: 15px;
+  right: 15px;
+  z-index: 10;
+}
+.panel-homepage .panel-region-lead .controls a {
+  width: 20px;
+  height: 20px;
+  margin: 0 5px;
+  border: 1px solid #dededf;
+  padding: 0;
+  background-image: url('../images/bg-rotating-banner-controls.png');
+  background-repeat: repeat-x;
+  background-position: 0 0;
+  display: inline-block;
+  line-height: 20px;
+  font-family: 'MorganAvecRegular';
+  font-size: 12px;
+  color: #007aaf;
+  text-decoration: none;
+}
+.panel-homepage .panel-region-lead .controls a.activeSlide {
+  background-position: 0 -20px;
+}
+.panel-homepage .panel-region-lead .controls a:hover {
+  background-position: 0 -40px;
+}

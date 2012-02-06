@@ -1,0 +1,147 @@
+<?php
+/**
+ * @file
+ * Expand menu items and set active-trail according to parents in current path
+ *
+ * Drupal default set active-trail for parent menu items only if 
+ * the menu contains a link to the current page.
+ * This module sets the active-trail according to the path URL
+ * It works for pages even if they are not in menu
+ * 
+ * eg. if current page is foo/bar/zee 
+ * foo & foo/bar menu items are set as active-trail and expanded
+ */
+
+/**
+ * Implement hook_init
+ */
+function menu_trail_by_path_init() {
+
+  $parent_candidates = _get_parent_candidates(drupal_get_path_alias());
+  // Don't even bother if current page is root
+  if (empty($parent_candidates)) {
+    return;
+  }
+
+  // Find link items matching the parent candidates in all menus
+  $matched_menus = array();
+  $matched_link_titles = array();
+  $results = db_select('menu_links','ml')
+    ->fields('ml',array('menu_name','link_path','link_title','depth'))
+    ->condition('link_path',$parent_candidates,'IN')
+    ->execute();
+  foreach ($results as $record) {
+
+    // Do not touch admin menus
+    if (in_array($record->menu_name, array('management','devel'))) {
+      continue;
+    }
+    
+    // If there is more than one matched link in a menu, use the deepest
+    elseif (!isset($matched_menus[$record->menu_name]) or $record->depth > $matched_menus[$record->menu_name]['depth']) {
+      $matched_menus[$record->menu_name]['link_path'] = $record->link_path;
+      $matched_menus[$record->menu_name]['depth'] = $record->depth;
+    }
+    
+    // Get the Link Title if it can be found in a menu item
+    if ($record->link_title AND !isset($matched_link_titles[$record->link_path])) {
+      $matched_link_titles[$record->link_path] = $record->link_title;
+    }
+  }
+  
+  // Set the active-trail for each menu containing one of the candidates
+  foreach ($matched_menus as $menu_name => $menu_link) {
+    menu_tree_set_path($menu_name, $menu_link['link_path']);
+  }
+
+  // Also set breadcrumb according to path URL as well
+  // Todo: allow to disable Breadcrumb handling via admin UI
+  if (TRUE) {
+  
+    // First breadcrumbs is always Home
+    $breadcrumbs[] = l(t('Home'),'<front>');
+    // Remove current page from breadcrumb
+    array_pop($parent_candidates);
+
+    foreach($parent_candidates as $link_path) {
+
+      // If title of the page is found on a menu item, use it
+      if (isset($matched_link_titles[$link_path])) {
+        $breadcrumbs[] = l($matched_link_titles[$link_path],$link_path);
+      }
+      // Otherwise, use slow method to find out the title of page
+      elseif ($menu_item = menu_get_item($link_path)) {
+        $breadcrumbs[] = l($menu_item['title'],$link_path);
+      }
+    }
+    drupal_set_breadcrumb($breadcrumbs);
+  }
+
+  //Todo: Multilingual site
+}
+
+/**
+ * Return an array of parent candidates
+ * e.g. for path 'foo/bar/zee' 
+ * return array of internal drupal paths for 'foo', 'foo/bar', 'foo/bar/zee'
+ */
+function _get_parent_candidates($path = NULL) {
+  if (!isset($path)) {
+    $path = request_path();
+  }
+  $pieces = explode('/', $path);
+  $path = '';
+  $parent_candidates = array();
+  foreach ($pieces as $piece) {
+    $path .= $piece . '/';
+    $parent_candidates[] = drupal_get_normal_path(rtrim($path, '/'));
+  }
+  return $parent_candidates;
+}
+
+/**
+ * Below is mattfarina's fix for core bug /942782
+ */
+
+/**
+ * Implements hook_menu_insert().
+ */
+function menu_trail_by_path_menu_insert($menu) {
+  _custom_menu_active_trail_add($menu);
+}
+
+/**
+ * Implements hook_menu_update().
+ */
+function menu_trail_by_path_menu_update($menu) {
+  _custom_menu_active_trail_add($menu);
+}
+
+/**
+ * Implements hook_menu_delete().
+ */
+function menu_trail_by_path_menu_delete($menu) {
+  $active_menus = variable_get('menu_default_active_menus', array_keys(menu_list_system_menus()));
+  if (in_array($menu['menu_name'], $active_menus)) {
+    $key = array_search($menu['menu_name'], $active_menus);
+    unset($active_menus[$key]);
+    variable_set('menu_default_active_menus', $active_menus);
+  }
+}
+
+/**
+ * Add a custom menu to the active trail.
+ * 
+ * @param array $menu
+ *   A menu item to add to the active trail.
+ */
+function _custom_menu_active_trail_add($menu) {
+  // Make sure the menu is present in the active menus variable so that its
+  // items may appear in the menu active trail.
+  // @see menu_set_active_menu_names()
+  $active_menus = variable_get('menu_default_active_menus', array_keys(menu_list_system_menus()));
+  if (!in_array($menu['menu_name'], $active_menus)) {
+    $active_menus[] = $menu['menu_name'];
+    variable_set('menu_default_active_menus', $active_menus);
+  }
+}

@@ -1,0 +1,13 @@
+name = Block reference
+description = Defines a field type for referencing a block from a node.
+package = Fields
+core = 7.x
+dependencies[] = field
+dependencies[] = options
+dependencies[] = block
+; Information added by drupal.org packaging script on 2011-08-27
+version = "7.x-1.9"
+core = "7.x"
+project = "blockreference"
+datestamp = "1314436018"
+

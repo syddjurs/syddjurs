@@ -1,0 +1,205 @@
+<?php
+
+/**
+ * Implements hook_migrate_api().
+ */
+function balk_migrate_migrate_api() {
+  $api = array(
+    'api' => 2,
+  );
+  return $api;
+}
+
+/**
+ * Implements hook_menu().
+ */
+function balk_migrate_menu() {
+  $items['admin/content/migrate/structure'] = array(
+    'title' => 'Ballerup structure',
+    'type' => MENU_LOCAL_TASK,
+    'description' => 'Migrate Ballerup structure',
+    'page callback' => 'drupal_get_form',
+    'page arguments' => array('balk_migrate_structure_form'),
+    'access arguments' => array(MIGRATE_ACCESS_BASIC),
+    'weight' => 5,
+  );
+
+  return $items;
+}
+
+/**
+ * Form builder function to allow choice of which batch to run.
+ */
+function balk_migrate_structure_form() {
+  $form['description'] = array(
+    '#type' => 'markup',
+    '#markup' => '<p>' . t('This batch operation creates the hierarchical menu structure for imported Ballerup content.') . '</p>',
+  );
+  $form['submit'] = array(
+    '#type' => 'submit',
+    '#value' => 'Go',
+  );
+  
+  return $form;
+}
+
+function balk_migrate_structure_form_submit($form, &$form_state) {
+  $batch = balk_migrate_batch_structure();
+  
+  batch_set($batch);
+}
+
+/**
+ * Ballerup structure batch.
+ */
+function balk_migrate_batch_structure() {
+  $query = "
+    SELECT sc.oid siab_oid, ml.mlid drupal_mlid, ml.link_title siab_name, sc.name drupal_name FROM menu_links ml INNER JOIN siab_content sc ON ml.link_title = sc.name
+    WHERE
+      (ml.menu_name = 'main-menu' AND ml.p3 = 0)
+    AND
+      (sc.objecttype IS NULL OR sc.objecttype IN ('Ny Subsite Forside', 'Afdeling Forside'))";
+  $result = db_query($query, array(), array('fetch' => PDO::FETCH_ASSOC))->fetchAll();
+  
+  $operations = array();
+  // Add operation that creates menu items for subsite frontpages.
+  $operations[] = array('balk_migrate_batch_subsite_frontpages_op', array(NULL, NULL, array(), t('(Generating menu items for subsite frontpages)')));
+  
+  foreach ($result as $key => $section) {
+    $taxonomy_term_tid = db_select('taxonomy_term_data', 'ttd', array('fetch' => PDO::FETCH_ASSOC))
+      ->condition('ttd.vid', 8)
+      ->condition('ttd.name', $section['drupal_name'], '=')
+      ->fields('ttd', array('tid'))
+      ->execute()
+      ->fetchField();
+    $tids = array('tids' => array($taxonomy_term_tid));
+  
+    $operations[] = array('balk_migrate_batch_structure_op', array($section['siab_oid'], $section['drupal_mlid'], $tids, t('(Structuring: @name)', array('@name' => $section['drupal_name']))));
+  }
+  
+  $batch = array(
+    'operations' => $operations,
+    'finished' => 'balk_migrate_batch_finished',
+  );
+  return $batch;
+}
+
+/**
+ * Generates menu items for all contentpage nodes.
+ */
+function balk_migrate_batch_structure_op($parent_oid, $plid, $tids, $operation_details, &$context) {
+  balk_migrate_create_menu_items($parent_oid, $plid, $tids);
+
+  $context['message'] = $operation_details;
+}
+
+function balk_migrate_create_menu_items($parent_oid, $plid, $tids) {
+  $children = db_select('tree', 't', array('fetch' => PDO::FETCH_ASSOC))
+    ->fields('t', array('child_oid'))
+    ->condition('parent_oid', $parent_oid)
+    ->distinct()
+    ->execute()
+    ->fetchAll();
+  
+  if ($children) {
+    foreach ($children as $key => $child) {
+      $node = balk_migrate_get_nid($child['child_oid']);
+      
+      if ($node) {
+        $node = node_load($node->nid);
+        $menu_link = array(
+          'menu_name'  => 'main-menu',
+          'link_title' => $node->title,
+          'link_path'  => drupal_get_normal_path('node/' . $node->nid),
+          'plid'       => $plid,
+        );
+
+        // Save the item to database.
+        $new_plid = menu_link_save($menu_link);
+        
+        // Assign the node to a site_structure section.
+        balk_custom_node_assign_term_action($node, $tids);
+
+        // Call recursive function that creates a menu item for each children.
+        balk_migrate_create_menu_items($child['child_oid'], $new_plid, $tids);
+      }
+    }
+  }
+}
+
+/**
+ * Generates menu items for subsite frontpages.
+ */
+function balk_migrate_batch_subsite_frontpages_op($parent_oid, $plid, $tids, $operation_details, &$context) {
+  balk_migrate_create_subsite_frontpage_menu_item();
+
+  $context['message'] = $operation_details;
+}
+
+/**
+ * Create a menu link for eachs subsite frontpage.
+ */
+function balk_migrate_create_subsite_frontpage_menu_item() {
+  // Get parent subsite items.
+  $subsites = db_select('siab_content', 'c', array('fetch' => PDO::FETCH_ASSOC))
+    ->fields('c', array('oid', 'name'))
+    ->condition('objecttype', 'Ny Subsite Forside')
+    ->execute()
+    ->fetchAll();
+  
+  foreach ($subsites as $key => $subsite) {
+    $menu_item_mlid = db_select('menu_links', 'ml', array('fetch' => PDO::FETCH_ASSOC))
+      ->condition('ml.menu_name', 'main-menu')
+      ->condition('ml.link_title', $subsite['name'], '=')
+      ->fields('ml', array('mlid'))
+      ->execute()
+      ->fetchField();
+
+    $taxonomy_term_tid = db_select('taxonomy_term_data', 'ttd', array('fetch' => PDO::FETCH_ASSOC))
+      ->condition('ttd.vid', 8)
+      ->condition('ttd.name', $subsite['name'], '=')
+      ->fields('ttd', array('tid'))
+      ->execute()
+      ->fetchField();
+    $context = array('tids' => array($taxonomy_term_tid));
+
+    if ($menu_item_mlid) {
+      // Create a menu link for each subsite frontpage.
+      $node = balk_migrate_get_nid($subsite['oid']);
+
+      if ($node) {
+        $node = node_load($node->nid);
+        $menu_link = array(
+          'menu_name'  => 'main-menu',
+          'link_title' => $subsite['name'],
+          'link_path'  => drupal_get_normal_path('node/' . $node->nid),
+          'plid'       => $menu_item_mlid,
+          'weight'     => -50
+        );
+
+        // Save the item to database.
+        menu_link_save($menu_link);
+
+        // Assign the node to a site_structure section.
+        balk_custom_node_assign_term_action($node, $context);
+      }
+    }
+  }
+}
+
+function balk_migrate_get_nid($oid) {
+  return db_query("SELECT destination_id AS nid FROM {balk_migrate_source_uri_map} WHERE source_id = :source_id", array(':source_id' => $oid))->fetchObject();
+}
+
+/**
+ * Batch 'finished' callback used by balk_migrate_batch_structure_op.
+ */
+function balk_migrate_batch_finished($success, $results, $operations) {
+  if ($success) {
+    drupal_set_message(t('Finished!'));
+  }
+  else {
+    $error_operation = reset($operations);
+    drupal_set_message(t('An error occurred while processing @operation with arguments : @args', array('@operation' => $error_operation[0], '@args' => print_r($error_operation[0], TRUE))));
+  }
+}

@@ -1,0 +1,13 @@
+diff --git a/node_reference.module b/node_reference.module
+index 2fbaf1b..c5a30da 100644
+--- a/node_reference.module
++++ b/node_reference.module
+@@ -393,7 +393,7 @@ function node_reference_field_formatter_view($entity_type, $entity, $field, $ins
+     case 'node_reference_default':
+     case 'node_reference_plain':
+       foreach ($items as $delta => $item) {
+-        if ($item['access']) {
++        if (isset($item['access']) && $item['access']) {
+           $node = $item['node'];
+           if ($display['type'] == 'node_reference_default') {
+             $uri = entity_uri('node', $node);

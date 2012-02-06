@@ -1,0 +1,147 @@
+Index: jump.module
+===================================================================
+--- jump.module	(revision 14)
++++ jump.module	(working copy)
+@@ -78,15 +78,16 @@
+   $jumpmenu_type = substr($delta, 0, 4);
+   $jumpmenu_name = substr($delta, 5);
+   $active = jump_get_active_setting($delta);
++  $description = jump_get_description_setting($delta);
+   if ($jumpmenu_type == 'menu') {
+-    $form = jump_quickly($jumpmenu_name, 'menu', $active);
++    $form = jump_quickly($jumpmenu_name, 'menu', $active, $description);
+ 
+     // Use the menu label as the default block subject
+     $menus = menu_get_menus();
+     $subject = $menus[$jumpmenu_name];
+   }
+   elseif ($jumpmenu_type == 'taxo') {
+-    $form = jump_quickly($jumpmenu_name, 'taxo', $active);
++    $form = jump_quickly($jumpmenu_name, 'taxo', $active, $description);
+ 
+     // Use the vocabulary name as the default block subject
+     $vocab = taxonomy_vocabulary_load($jumpmenu_name);
+@@ -109,6 +110,12 @@
+     '#default_value' => variable_get('jump_activepageinmenu_' . $delta, 1),
+     '#description' => t('This setting will force the jump menu to show the current page as the default selection in this block\'s jump menu.'),
+   );
++  $form['jump_showdescription_' . $delta] = array(
++    '#type' => 'checkbox',
++    '#title' => t('Show menu or vocabulary description in jump menu.'),
++    '#default_value' => variable_get('jump_showdescription_' . $delta, 1),
++    '#description' => t('This setting will show the menu or vocabulary description in this block\'s jump menu.'),
++  );
+   return $form;
+ }
+ 
+@@ -120,6 +127,7 @@
+  */
+ function jump_block_save($delta = '', $edit = array()) {
+   variable_set('jump_activepageinmenu_' . $delta, $edit['jump_activepageinmenu_' . $delta]);
++  variable_set('jump_showdescription_' . $delta, $edit['jump_showdescription_' . $delta]);
+   return;
+ }
+ 
+@@ -136,12 +144,16 @@
+  *   will be derived.  If 'custom' then $name should be an array that contains
+  *   the options.
+  * @param integer $active
++ * @param integer $description
+  * @return array
+  */
+-function jump_quickly($name = 'navigation', $type = 'menu', $active = -1) {
++function jump_quickly($name = 'navigation', $type = 'menu', $active = -1, $description = -1) {
+   if ($active === -1) {
+     $active = variable_get('jump_activepageinmenu', 1);
+   }
++  if ($description === -1) {
++    $description = variable_get('jump_showdescription', 1);
++  }
+ 
+   if (is_array($name)) {
+     $options = $name;
+@@ -149,9 +161,17 @@
+   else {
+     $options = array();
+     if ($type == 'menu') {
++      if ($description) {
++        $menu = menu_load($name);
++        $description = $menu['description'];
++      }
+       jump_menu_get_menu_options($options, $name);
+     }
+     elseif ($type == 'taxo') {
++      if ($description) {
++        $vocabulary = taxonomy_vocabulary_load($name);
++        $description = $vocabulary->description;
++      }
+       jump_menu_get_taxo_options($options, $name);
+     }
+   }
+@@ -163,7 +183,7 @@
+ 
+   $form_id = 'jump_quickly_form_' . $num_jump_forms;
+ 
+-  return drupal_get_form($form_id, $options, $active);
++  return drupal_get_form($form_id, $options, $active, $description);
+ }
+ 
+ /**
+@@ -172,9 +192,10 @@
+  * @param array $form_state
+  * @param array $options
+  * @param integer $active
++ * @param string $description
+  * @return array
+  */
+-function jump_quickly_form($form, &$form_state, $options, $active) {
++function jump_quickly_form($form, &$form_state, $options, $active, $description) {
+   $default = '';
+   if ($active) {
+     if (isset($options[$_GET['q']])) {
+@@ -186,6 +207,14 @@
+   $form['#submit'][] = 'jump_quickly_form_submit';
+   $form['#theme'] = 'jump_quickly_form';
+   $form['#attributes']['class'] = 'jump-quickly';
++  
++  if ($description) {
++    $form['jump_description'] = array(
++      '#type' => 'item',
++      '#markup' => $description,
++    );
++  }
++  
+   $form['jump_goto'] = array(
+     '#type' => 'select',
+     '#default_value' => $default,
+@@ -225,7 +254,13 @@
+  */
+ function theme_jump_quickly_form($variables) {
+   $form = $variables['form'];
+-  $output = '<div class="container-inline">';
++  $output = '';
++  
++  if (!empty($form['jump_description'])) {
++    $output .= drupal_render($form['jump_description']);
++  }
++  
++  $output .= '<div class="container-inline">';
+   $output .= drupal_render($form['jump_goto']);
+   $output .= drupal_render($form['submit']);
+   $output .= '</div>';
+@@ -311,3 +346,15 @@
+   $active = variable_get('jump_activepageinmenu_' . $delta, $active_site_default);
+   return $active;
+ }
++
++/**
++ * Utility function to retrieve the 'description' setting for a give block.
++ *
++ * @param string $delta
++ * @return integer
++ */
++function jump_get_description_setting($delta) {
++  $description_site_default = variable_get('jump_showdescription', 1);
++  $description = variable_get('jump_showdescription_' . $delta, $description_site_default);
++  return $description;
++}

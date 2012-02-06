@@ -1,0 +1,1174 @@
+html {
+  background: #f5f5f5 url(../images/bg-page.png) repeat-x 0 0;
+}
+
+h1, h2 {
+  font-family: 'MorganAvecRegular';
+  font-weight: normal;
+}
+h1 {
+  margin: 0 0 10px 0;
+  font-size: 36px;
+}
+h2 {
+  margin: 1em 0;
+  font-size: 16px;
+}
+h3 {
+  font-size: 12px;
+}
+h4 {
+  font-style: italic;
+  font-weight: normal;
+}
+
+p{
+  margin: 1em 0;
+}
+p:first-child {
+  margin-top: 0;
+}
+p:last-child {
+  margin-bottom: 0;
+}
+
+/*pre {
+  margin: 1em 0;
+  padding: 0;
+  font-family: 'MorganAvecBold';
+  font-size: 16px;
+}*/
+
+blockquote {
+  margin: 1em;
+  font-family: 'MorganSansLiningObliqueRg';
+  font-size: 16px;
+}
+
+/* Header */
+
+.section-header {
+  height: 145px;
+  background: #fff;
+}
+.logo-img {
+  padding-top: 20px;
+}
+
+.region-header-first {
+  z-index: 150;
+}
+.region-header-first .block-menu-block {
+  float: left;
+}
+.region-header-first .block-locale {
+  float: right;
+}
+
+.region-header-first h2 {
+  display: none;
+}
+.region-header-first ul.menu {
+  margin: 0;
+  padding-top: 13px;
+  list-style: none;
+}
+.region-header-first ul.menu li {
+  float: left;
+  list-style: none;
+}
+.region-header-second .block {
+  margin-top: 8px;
+}
+
+/* END Header */
+
+
+/* Header Secondary Menu */
+
+.region-header-first ul.menu li {
+  position: relative;
+  margin: 0;
+  padding: 0.2em 0.5em;
+}
+.region-header-first ul.menu li.expanded {
+  padding-right: 23px;
+  background-image: url('../images/more_arrow.png');
+  background-repeat: no-repeat;
+  background-position: 100% -15px;
+}
+.region-header-first ul.menu li.expanded.shown {
+  background-color: #EAEAEA;
+  background-position: 100% 8px;
+}
+.region-header-first ul.menu ul {
+  padding: 0.4em 0.5em;
+  background: #EAEAEA;
+  position: absolute;
+  left: 0;
+  top: 17px;
+  width: 100px;
+  display: none;
+}
+.region-header-first ul.menu li.expanded.shown ul {
+  display: block;
+}
+.region-header-first ul.menu ul li {
+  float: none;
+  padding: 0;
+}
+
+/* END Header Secondary Menu */
+
+
+/* Menu */
+
+.zone-header {
+  position: relative;
+}
+.zone-header-wrapper .zone-header .region-menu {
+  width: 960px;
+  margin: 0;
+}
+
+.region-menu ul.menu {
+  position: absolute;
+  top: -34px;
+  left: 292px;
+}
+
+.region-menu ul.menu,
+.region-menu ul.menu li {
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.region-menu ul.menu li {
+  float: left;
+  background: url('../images/bg-main-menu-spacer.png') no-repeat 100% 50%;
+}
+.region-menu ul.menu li.last {
+  background: none;
+}
+
+.region-menu ul.menu li a {
+  padding: 0 40px 0 22px;
+  line-height: 46px;
+  font-family: 'MorganAvecRegular';
+  font-size: 16px;
+  font-weight: bold;
+  display: inline-block;
+}
+
+.region-menu ul.menu li a.l1 {
+  text-decoration: none;
+}
+.region-menu ul.menu li a.l1:hover,
+.region-menu ul.menu li a.l1.open {
+  background-color: #fff;
+  -moz-box-shadow: 0 0 7px #999;
+  box-shadow: 0 0 7px #999;
+}
+
+.region-menu ul.menu .submenu {
+  width: 960px;
+  border-bottom: 5px solid #fff;
+  padding: 20px 0;
+  position: absolute;
+  top: 46px;
+  left: -292px;
+  background: #fff url('../images/bg-main-menu.png') repeat-x 0 100%;
+  z-index: 100;
+  display: none;
+}
+.region-menu ul.menu ul {
+  width: 260px;
+  margin: 0 20px;
+  position: relative;
+  top: 0;
+  left: 0;
+  float: left;
+}
+
+.region-menu ul.menu li li {
+  padding: 0 10px;
+  height: 55px;
+  float: none;
+  background: none;
+  position: relative;
+}
+.region-menu ul.menu li li.space {
+  left: 320px;
+}
+
+.region-menu ul.menu li li a {
+  padding: 0;
+  line-height: 1.3em;
+  font-weight: normal;
+  display: block;
+}
+
+.region-menu ul li.hide {
+  display: none;
+}
+
+.region-menu ul.menu li.green a {
+  color: #677d1c;
+}
+.region-menu ul.menu li.green .submenu {
+  border-color: #94af2a;
+}
+.region-menu ul.menu a.green {
+  background: url('../images/sprite-bg-main-menu-arrows.png') no-repeat;
+  background-position: 85% -46px;
+}
+.region-menu ul.menu a.green:hover,
+.region-menu ul.menu a.green.open {
+  background-position: 85% 0;
+}
+
+.region-menu ul.menu li.red a {
+  color: #c4161c;
+}
+.region-menu ul.menu li.red .submenu {
+  border-color: #c4161c;
+}
+.region-menu ul.menu a.red {
+  background: url('../images/sprite-bg-main-menu-arrows.png') no-repeat;
+  background-position: 85% -135px;
+}
+.region-menu ul.menu a.red:hover,
+.region-menu ul.menu a.red.open {
+  background-position: 85% -92px;
+}
+
+.region-menu ul.menu li.blue a {
+  color: #007aaf;
+}
+.region-menu ul.menu li.blue .submenu {
+  border-color: #007aaf;
+}
+.region-menu ul.menu a.blue {
+  background: url('../images/sprite-bg-main-menu-arrows.png') no-repeat;
+  background-position: 85% -227px;
+}
+.region-menu ul.menu a.blue:hover,
+.region-menu ul.menu a.blue.open {
+  background-position: 85% -184px;
+}
+
+.region-menu ul.menu li.brown a {
+  color: #a14f0c;
+}
+.region-menu ul.menu li.brown .submenu {
+  border-color: #a14f0c;
+}
+.region-menu ul.menu a.brown {
+  background: url('../images/sprite-bg-main-menu-arrows.png') no-repeat;
+  background-position: 85% -319px;
+}
+.region-menu ul.menu a.brown:hover,
+.region-menu ul.menu a.brown.open {
+  background-position: 85% -276px;
+}
+
+.region-menu ul.menu li.gray a {
+  color: #818181;
+}
+.region-menu ul.menu li.gray .submenu {
+  border-color: #818181;
+}
+.region-menu ul.menu a.gray {
+  background: url('../images/sprite-bg-main-menu-arrows.png') no-repeat;
+  background-position: 85% -411px;
+}
+.region-menu ul.menu a.gray:hover,
+.region-menu ul.menu a.gray.open {
+  background-position: 85% -365px;
+}
+
+/* END Menu */
+
+
+/* Left menu */
+
+.region-sidebar .block h2 {
+  word-wrap: break-word;
+}
+.region-sidebar .block h2 a {
+  color: #666666;
+}
+
+.region-sidebar ul.menu {
+  margin: 0;
+}
+.region-sidebar ul.menu li {
+  margin: 0;
+  padding: 0;
+  list-style: none;
+  border-bottom: 1px solid #d9d9d9;
+}
+.region-sidebar ul.menu li.first {
+  border-top: 1px solid #d9d9d9;
+}
+.region-sidebar ul.menu ul.menu li {
+  margin: 0 0 0 10px;
+  border: 0;
+}
+
+.region-sidebar ul.menu li a {
+  padding: 7px 0 7px 20px;
+  display: block;
+  text-decoration: none;
+  color: #0091d1;
+  background-position: 0 7px;
+  background-repeat: no-repeat;
+  background-image: url(../images/left-menu/blue-left-menu-level1.png);
+}
+.region-sidebar ul.menu li a.active,
+.region-sidebar ul.menu li a.active-trail {
+  background-image: url(../images/left-menu/blue-left-menu-level1-active.png);
+  font-weight: bold;
+}
+.region-sidebar ul.menu li a:hover {
+  background-color: #f5f5f5;
+}
+
+.region-sidebar ul.menu ul.menu li a {
+  padding-left: 25px;
+  background-position: 10px 10px;
+  background-image: url(../images/left-menu/blue-left-menu-level2.png);
+}
+.region-sidebar ul.menu ul.menu li a.active-trail {
+  background-image: url(../images/left-menu/blue-left-menu-level2-active.png);
+}
+
+.region-sidebar ul.menu ul.menu ul.menu li a {
+  background-image: none;
+}
+.region-sidebar ul.menu ul.menu ul.menu li a.active,
+.region-sidebar ul.menu ul.menu ul.menu li a.active-trail {
+  background-image: none;
+}
+
+/* END Left menu */
+
+
+/* Content */
+
+.zone-content {
+  border-top: 5px solid #0091d1;
+  margin-top: -50px;
+  padding: 10px 0 100px 0;
+  background: #fff url(../images/bg-content-bottom.png) no-repeat 50% 100%;
+  -moz-box-shadow: 0 0 7px #999;
+  box-shadow: 0 0 7px #999;
+}
+
+.front .zone-content {
+  padding-top: 0;
+}
+
+.alpha-grid-debug .zone-content {
+  background-repeat: repeat;
+  background-position: 0 0;
+}
+
+/* Context Colors */
+
+.context-borger .zone-content {
+  border-color: #677d1c;
+}
+.context-borger #section-content a {
+  color: #677d1c;
+}
+.context-borger .region-sidebar ul.menu li a {
+  background-image: url(../images/left-menu/green-left-menu-level1.png);
+}
+.context-borger .region-sidebar ul.menu li a.active-trail {
+  background-image: url(../images/left-menu/green-left-menu-level1-active.png);
+}
+.context-borger .region-sidebar ul.menu ul.menu li a {
+  background-image: url(../images/left-menu/green-left-menu-level2.png);
+}
+.context-borger .region-sidebar ul.menu ul.menu li a.active-trail {
+  background-image: url(../images/left-menu/green-left-menu-level2-active.png);
+}
+
+.context-erhverv .zone-content {
+  border-color: #c4161c;
+}
+.context-erhverv #section-content a {
+  color: #c4161c;
+}
+.context-erhverv .region-sidebar ul.menu li a {
+  background-image: url(../images/left-menu/red-left-menu-level1.png);
+}
+.context-erhverv .region-sidebar ul.menu li a.active-trail {
+  background-image: url(../images/left-menu/red-left-menu-level1-active.png);
+}
+.context-erhverv .region-sidebar ul.menu ul.menu li a {
+  background-image: url(../images/left-menu/red-left-menu-level2.png);
+}
+.context-erhverv .region-sidebar ul.menu ul.menu li a.active-trail {
+  background-image: url(../images/left-menu/red-left-menu-level2-active.png);
+}
+
+.context-kommunen .zone-content {
+  border-color: #0091d1;
+}
+.context-kommunen #section-content a {
+  color: #0091d1;
+}
+.context-kommunen .region-sidebar ul.menu li a {
+  background-image: url(../images/left-menu/blue-left-menu-level1.png);
+}
+.context-kommunen .region-sidebar ul.menu li a.active-trail {
+  background-image: url(../images/left-menu/blue-left-menu-level1-active.png);
+}
+.context-kommunen .region-sidebar ul.menu ul.menu li a {
+  background-image: url(../images/left-menu/blue-left-menu-level2.png);
+}
+.context-kommunen .region-sidebar ul.menu ul.menu li a.active-trail {
+  background-image: url(../images/left-menu/blue-left-menu-level2-active.png);
+}
+
+/*.context-erhverv .zone-content {
+  border-color: #a14f0c;
+}
+.context-erhverv #section-content a {
+  color: #a14f0c;
+}
+.context-erhverv .region-sidebar ul.menu li a {
+  background-image: url(../images/left-menu/brown-left-menu-level1.png);
+}
+.context-erhverv .region-sidebar ul.menu li a.active-trail {
+  background-image: url(../images/left-menu/brown-left-menu-level1-active.png);
+}
+.context-erhverv .region-sidebar ul.menu ul.menu li a {
+  background-image: url(../images/left-menu/brown-left-menu-level2.png);
+}
+.context-erhverv .region-sidebar ul.menu ul.menu li a.active-trail {
+  background-image: url(../images/left-menu/brown-left-menu-level2-active.png);
+}
+*/
+.context-netsteder .zone-content {
+  border-color: #818181;
+}
+.context-netsteder #section-content a {
+  color: #818181;
+}
+.context-netsteder .region-sidebar ul.menu li a {
+  background-image: url(../images/left-menu/gray-left-menu-level1.png);
+}
+.context-netsteder .region-sidebar ul.menu li a.active-trail {
+  background-image: url(../images/left-menu/gray-left-menu-level1-active.png);
+}
+.context-netsteder .region-sidebar ul.menu ul.menu li a {
+  background-image: url(../images/left-menu/gray-left-menu-level2.png);
+}
+.context-netsteder .region-sidebar ul.menu ul.menu li a.active-trail {
+  background-image: url(../images/left-menu/gray-left-menu-level2-active.png);
+}
+
+/* END Context Colors */
+
+/* END Content */
+
+
+/* Panel panes (Blocks) */
+
+.front .panel-pane {
+  margin-top: 30px;
+}
+
+.panel-pane .pane-title,
+.block .block-title,
+.panel-region-middle-right .pane-content h2,
+.panel-region-right .pane-content h2 {
+  margin: 0 0 10px 0;
+  padding-bottom: 7px;
+  font-family: 'MorganAvecBold';
+  font-size: 16px;
+  font-weight: normal;
+  text-transform: uppercase;
+}
+
+.front .panel-pane .pane-title {
+  border-bottom: 1px solid #d9d9d9;
+}
+
+.page-node .panel-region-right .panel-separator,
+.page-node .panel-region-middle-right .panel-separator,
+.page-node .panel-region-right .node-right-column > .field,
+.page-node .panel-region-middle-right .node-right-column .field,
+.page-node .panel-region-right .node-right-column .field-type-blockreference .field-item,
+.page-node .panel-region-middle-right .node-right-column .field-type-blockreference .field-item {
+  margin-bottom: 15px;
+  border-bottom: 1px solid #d9d9d9;
+  padding-bottom: 20px;
+}
+
+.page-node .panel-region-right .node-right-column > .field:last-child,
+.page-node .panel-region-middle-right .node-right-column .field:last-child,
+.page-node .panel-region-right .node-right-column  .field-type-blockreference .field-item:last-child,
+.page-node .panel-region-middle-right .node-right-column .field-type-blockreference .field-item:last-child {
+  margin-bottom: 0;
+  border-bottom: 0;
+  padding-bottom: 0;
+}
+
+/* END Panel panes (Blocks) */
+
+
+/* Jump menu panes and blocks */
+
+.main-menu-jump-menus {
+  width: 300px;
+  margin-right: 30px;
+  float: right;
+}
+.main-menu-jump-menus .block {
+  margin-bottom: 2em;
+}
+.main-menu-jump-menus h2 {
+  margin-top: 0;
+  font-family: 'MorganAvecBold';
+  font-size: 16px;
+  font-weight: normal;
+}
+
+/* Special case for the 'Netsteder' menu */
+li.netsteder .main-menu-jump-menus {
+  width: auto;
+  margin: 0 20px;
+  float: none;
+}
+li.netsteder .main-menu-jump-menus .block-jump {
+  width: 300px;
+  margin-right: 30px;
+  float: left;
+}
+li.netsteder .main-menu-jump-menus #block-jump-menu-menu-bfo {
+  clear: left;
+}
+/* END Special case for the 'Netsteder' menu */
+
+.front .panel-region-top {
+  clear: both;
+  border-bottom: 1px solid #d9d9d9;
+  padding-bottom: 15px;
+}
+.front .panel-region-top .grid-5 {
+  width: 300px;
+}
+.front .panel-region-top .grid-5 .inside {
+  width: 295px;
+}
+
+.front .panel-region-top .panel-pane {
+  margin-top: 15px;
+}
+.front .panel-region-top .pane-title {
+  margin: 0;
+  border: 0;
+  padding: 0;
+}
+
+.pane-jump-menu-menu-selvbetjening {
+  color: #007aaf;
+}
+.pane-jump-menu-menu-borger-genveje {
+  color: #677d1c;
+}
+.pane-jump-menu-menu-erhverv-genveje {
+  color: #007aaf;
+}
+
+.jump-quickly .container-inline div {
+  margin: 0;
+  display: block;
+}
+.jump-quickly .form-type-select {
+  float: left;
+}
+.form-item-jump-goto .selector {
+  width: 233px !important;
+}
+.region-menu .form-item-jump-goto .selector {
+  width: 238px !important;
+}
+.jump-quickly .form-submit {
+  float: right;
+}
+
+/* END Jump menu panes and blocks */
+
+
+/* Homepage */
+
+/* Ballerup nyt */
+.views-news-front-ballerup-nyt .views-field-field-news-category,
+.views-news-page-nyheder .views-field-field-news-category {
+  padding-right: 10px;
+}
+.views-news-front-ballerup-nyt .views-field-field-news-category,
+.views-news-front-ballerup-nyt .views-field-created,
+.views-news-page-nyheder .views-field-field-news-category,
+.views-news-page-nyheder .views-field-created {
+  font-size: 11px;
+  font-weight: bold;
+  text-transform: uppercase;
+}
+.views-news-front-ballerup-nyt .views-row {
+  width: 260px;
+  margin-bottom: 5px;
+  border-bottom: 1px solid #d9d9d9;
+  padding-bottom: 5px;
+  clear: right;
+  float: right;
+}
+.views-news-front-ballerup-nyt .views-field-title,
+.views-news-page-nyheder .views-field-title {
+  padding-top: 5px;
+}
+.views-news-front-ballerup-nyt .views-row-first {
+  width: 280px;
+  margin: 0;
+  border: 0;
+  padding: 0;
+  float: left;
+}
+.views-news-front-ballerup-nyt .views-row-first .views-field-title {
+  font-size: 20px;
+  line-height: 1.5em;
+}
+.views-news-front-ballerup-nyt .views-row-last {
+  margin: 0;
+  border: 0;
+  padding: 0;
+}
+.views-news-front-ballerup-nyt .more-link {
+  margin-top: 10px;
+}
+/* END Ballerup nyt */
+
+/* Det sker i Ballerup */
+.pane-activities .pane-title {
+  margin-bottom: 3px;
+}
+.views-activities-front-det-sker-i-ballerup .views-row {
+  padding: 7px 0;
+  border-bottom: 1px solid #d9d9d9;
+}
+.views-activities-front-det-sker-i-ballerup .views-row:hover {
+  background-color: #f5f5f5;
+}
+.views-activities-front-det-sker-i-ballerup .views-row-last {
+  border-bottom: 0;
+}
+.views-activities-front-det-sker-i-ballerup .views-field-field-annoncement-date {
+  width: 39px;
+  height: 42px;
+  margin: 2px 8px 0 0;
+  background: url('../images/bg-activity-date.png') no-repeat 0 0;
+  float: left;
+  text-align: center;
+  font-size: 10px;
+  color: #333333;
+  text-transform: uppercase;
+}
+.views-activities-front-det-sker-i-ballerup .views-field-field-annoncement-date .day {
+  padding-top: 6px;
+  display: block;
+  font-family: 'MorganAvecRegular';
+  font-size: 16px;
+}
+.views-activities-front-det-sker-i-ballerup .views-field-field-activitytype {
+  padding-right: 5px;
+}
+.views-activities-front-det-sker-i-ballerup .views-field-field-activitytype,
+.views-activities-front-det-sker-i-ballerup .views-field-field-activity-start,
+.views-activities-front-det-sker-i-ballerup .views-field-field-activity-end {
+  font-size: 11px;
+  font-weight: bold;
+  text-transform: uppercase;
+}
+.views-activities-front-det-sker-i-ballerup .views-field-title,
+.views-activities-front-det-sker-i-ballerup .views-field-field-activity-place {
+  margin-left: 47px;
+  padding-top: 4px;
+  display: block;
+}
+/* END Det sker i Ballerup */
+
+/* Hold dig opdateret */
+.views-media-front-hold-dig-opdateret .views-field-field-lead-image,
+.views-media-front-hold-dig-opdateret .views-field-field-mediafile {
+  margin-right: 20px;
+  float: left;
+}
+.views-media-front-hold-dig-opdateret .views-field-title {
+  margin-bottom: 10px;
+  font-size: 20px;
+}
+/* END Hold dig opdateret */
+
+/* Følg Ballerup */
+.folg-ballerup,
+.folg-ballerup li {
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+.folg-ballerup li a {
+  margin: 4px 0;
+  padding-left: 54px;
+  font-size: 16px;
+  background-image: url('../images/sprite-folg-ballerup.png');
+  background-repeat: no-repeat;
+  display: inline-block;
+  line-height: 43px;
+}
+.folg-ballerup li a.facebook {
+  background-position: 0 0;
+}
+.folg-ballerup li a.twitter {
+  background-position: 0 -50px;
+}
+.folg-ballerup li a.rss {
+  background-position: 0 -100px;
+}
+/* END Følg Ballerup */
+
+/* Aktuelt i Ballerup */
+.views-campaigns-front-aktuelt-i-ballerup .view-content {
+  background: url('../images/bg-jcarousel-wrapper.png') repeat-x 0 100%;
+  border-bottom: 1px solid #d9d9d9;
+  padding: 0 45px;
+}
+.views-campaigns-front-aktuelt-i-ballerup .jcarousel-clip {
+  overflow: hidden;
+}
+.views-campaigns-front-aktuelt-i-ballerup .jcarousel-item {
+  width: 160px;
+  height: 185px;
+  margin: 0 5px;
+  position: relative;
+  background: url('../images/bg-sprite-jcarousel-item.png') repeat-x 0 0;
+}
+.views-campaigns-front-aktuelt-i-ballerup .jcarousel-item:hover {
+  background-position: 0 -185px;
+}
+.views-campaigns-front-aktuelt-i-ballerup .jcarousel-item-wrapper {
+  height: 148px;
+  overflow: hidden;
+}
+.views-campaigns-front-aktuelt-i-ballerup .jcarousel-prev,
+.views-campaigns-front-aktuelt-i-ballerup .jcarousel-next {
+  width: 32px;
+  height: 32px;
+  position: absolute;
+  top: 65px;
+  background-image: url("../images/sprite-jcarousel-nav.png");
+  background-repeat: no-repeat;
+}
+.views-campaigns-front-aktuelt-i-ballerup .jcarousel-prev {
+  left: -45px;
+  background-position: 0 0;
+}
+.views-campaigns-front-aktuelt-i-ballerup .jcarousel-next {
+  right: -45px;
+  background-position: 0 -32px;
+}
+
+.views-campaigns-front-aktuelt-i-ballerup .jcarousel-item .views-field-field-lead-image {
+  position: absolute;
+  top: 0;
+  left: 0;
+}
+.views-campaigns-front-aktuelt-i-ballerup .jcarousel-item:hover .views-field-field-lead-image {
+  display: none;
+}
+.views-campaigns-front-aktuelt-i-ballerup .jcarousel-item .views-field-title {
+  padding: 5px 10px 6px 10px;
+  font-weight: bold;
+}
+.views-campaigns-front-aktuelt-i-ballerup .jcarousel-item .views-field-field-resume-long {
+  padding: 0 10px;
+}
+/* END Aktuelt i Ballerup */
+
+/* END Homepage */
+
+
+/* Content (Nodes) */
+
+.page-node .panel-region-middle .panel-pane,
+.page-node .panel-region-middle-top,
+.page-node .panel-region-middle .pane-node-content .content,
+.page-node .panel-region-middle-center .pane-node-content .content {
+  margin-bottom: 20px;
+  border-bottom: 1px solid #d9d9d9;
+}
+
+.page-node .panel-region-middle .pane-node-content .content,
+.page-node .panel-region-middle-center .pane-node-content .content {
+  margin-bottom: 5px;
+}
+
+.page-node .panel-region-middle-right .panel-pane,
+.page-node .panel-region-middle .pane-node-content,
+.page-node .panel-region-middle-center .pane-node-content,
+.page-node .panel-region-middle .pane-page-title,
+.page-node .panel-region-middle-top .pane-page-title,
+.page-node .panel-region-middle .pane-node-field-resume-long,
+.page-node .panel-region-middle-top .pane-node-field-resume-long {
+  margin: 0;
+  border: 0;
+  padding: 0;
+}
+
+.page-node .panel-region-middle .field-name-field-resume-long,
+.page-node .panel-region-middle-top .field-name-field-resume-long {
+  padding-bottom: 20px;
+  font-family: 'MorganAvecRegular';
+  font-size: 16px;
+}
+
+.page-node .panel-region-middle-top .field-name-field-resume-long {
+  padding-bottom: 10px;
+}
+
+.page-node .panel-region-middle .pane-node-custom-created-date,
+.page-node .panel-region-middle-top .pane-node-custom-created-date {
+  padding-bottom: 10px;
+}
+
+.page-node .pane-node-content .field {
+  margin-bottom: 1em;
+}
+.page-node .pane-node-content .field-name-field-lead-image {
+  text-align: center;
+}
+.page-node .pane-node-content .field-name-body {
+  clear: both;
+}
+.page-node .pane-node-content .field-name-body h2 {
+    margin: 0;
+}
+.page-node .pane-node-custom-created-date p {
+  margin: 0;
+}
+.page-node .pane-node-custom-created-date {
+  font-size: 10px;
+}
+.page-node .updated {
+  font-size: 11px;
+}
+.page-node .pane-node-custom-created-date .custom-created-date-date {
+  text-transform: uppercase;
+}
+.page-node .pane-node-custom-created-date .custom-created-date-author {
+  margin-top: 5px;
+  font-size: 12px;
+}
+.page-node .pane-node-custom-created-date a,
+.page-node .updated a {
+  color: #666666;
+}
+.page-node .updated-left {
+  float: left;
+}
+.page-node .pane-node-custom-created-date a,
+.page-node .updated-left a {
+  text-decoration: underline;
+}
+.page-node .updated-right {
+  float: right;
+}
+
+/* Latest campaign block */
+.views-campaigns-latest-campaign {
+  padding: 15px 15px 55px 15px;
+  background: #00628f url('../images/bg-latest-campaign.png') no-repeat 50% 100%;
+  color: #fff;
+}
+.views-campaigns-latest-campaign .views-field-title {
+  margin-bottom: 15px;
+  font-family: 'MorganAvecBold';
+  font-size: 16px;
+}
+.views-campaigns-latest-campaign a,
+.views-campaigns-latest-campaign a:active,
+.views-campaigns-latest-campaign a:visited,
+.views-campaigns-latest-campaign a:hover {
+  color: #fff;
+}
+/* END Latest campaign block */
+
+/* Related Tema pane - right column */
+.page-node .pane-node-field-related-tema .field-name-field-lead-image img {
+  display: block;
+}
+.page-node .pane-node-field-related-tema .tema-wrapper {
+  padding: 15px 10px;
+  background: #d9d9d9 url('../images/bg-tema-right-column.png') repeat-x 0 0;
+}
+.page-node .pane-node-field-related-tema h2 {
+  padding-bottom: 0;
+}
+/* END Related Tema pane - right column */
+
+/* Related block */
+.page-node .pane-node-field-related .field-item {
+  margin-bottom: 10px;
+  border-bottom: 1px solid #d9d9d9;
+  padding-bottom: 10px;
+}
+.page-node .pane-node-field-related .field-items .field-item:last-child,
+.page-node .pane-node-field-related .node .field-item {
+  margin: 0;
+  border: 0;
+  padding: 0;
+}
+.page-node .pane-node-field-related h3 {
+  margin-bottom: 10px;
+}
+.page-node .pane-node-field-related .links {
+  display: none;
+}
+/* END Related block */
+
+
+/* Related Persons block */
+.page-node .pane-node-field-related-person .field-name-field-lead-image {
+  margin-right: 10px;
+  float: left;
+}
+.page-node .pane-node-field-related-person .field-name-field-phone1 {
+  margin-top: 15px;
+}
+/* END Related Persons block */
+
+
+/* Activity */
+.page-node.node-type-activity .field-name-field-annoncement-date,
+.page-node.node-type-activity .field-name-field-activity-start,
+.page-node.node-type-activity .field-name-field-activity-end {
+  float: left;
+  margin: 0 5px 1em 0;
+}
+/* END Activity */
+
+
+/* END Content (Nodes) */
+
+
+/* List Views */
+
+.views-view-list .views-row {
+  margin-bottom: 25px;
+}
+.views-view-list .views-row-last {
+  margin-bottom: 0;
+}
+.views-view-list .views-field-field-lead-image {
+  float: left;
+  margin: 0 15px 10px 0;
+}
+.views-view-list .views-field-title {
+  margin: 0 0 10px 0;
+  font-size: 16px;
+}
+
+/* END List Views */
+
+
+/* Grid Views */
+
+.views-view-grid.cols-3 td {
+  width: 240px;
+  padding: 0 20px 20px 20px;
+}
+.views-view-grid.cols-3 td.col-first,
+.views-view-grid.cols-3 td.col-last {
+  padding: 0 0 20px 0;
+}
+.views-view-grid .views-field-field-lead-image {
+  margin: 0 0 10px 0;
+}
+.views-view-grid .views-field-title {
+  font-family: 'MorganAvecBold';
+  font-size: 16px;
+  text-transform: uppercase;
+}
+
+/* END Grid Views */
+
+
+/* Table Views */
+
+tr.even,
+tr.odd {
+  border: 0;
+}
+th {
+  padding: 7px 5px;
+  background-color: #D6D6D6;
+}
+tr.odd {
+  background-color: #fff;
+}
+tr.even {
+  background-color: #E9E9E9;
+}
+tr.even td,
+tr.odd td {
+  padding: 5px;
+}
+
+/* END Table Views */
+
+
+
+/* Persons */
+
+.views-persons-list-page .views-exposed-form .views-widget,
+.views-persons-list-page .views-exposed-form label,
+.views-persons-list-page .views-exposed-form .form-item {
+  display: inline;
+}
+.views-persons-list-page .views-exposed-form .views-exposed-widget .form-submit {
+  margin-top: 0;
+}
+
+.views-persons-list-page .views-exposed-form,
+.views-persons-list-page .views-row {
+  margin-bottom: 15px;
+  border-bottom: 1px solid #d9d9d9;
+  padding-bottom: 15px;
+  font-size: 14px;
+}
+.views-persons-list-page .views-field-field-lead-image {
+  margin-right: 20px;
+  float: left;
+}
+.views-persons-list-page .views-field-field-resume-long {
+  width: 237px;
+  float: right;
+}
+.views-persons-list-page .views-label-field-resume-long {
+  font-weight: bold;
+}
+.views-persons-list-page .views-field-title {
+  font-family: 'MorganAvecBold';
+  font-size: 16px;
+}
+.views-persons-list-page .views-field-field-organization,
+.views-persons-list-page .views-field-field-member,
+.views-persons-list-page .views-field-field-adress {
+  margin: 1em 0;
+}
+.views-persons-list-page .views-field-field-phone1 .field-content,
+.views-persons-list-page .views-field-field-email .field-content,
+.views-persons-list-page .views-field-field-url .field-content {
+  display: inline;
+}
+
+/* END Persons */
+
+
+/* Ballerup Contact Block */
+
+.ballerup-contact-block {
+  width: 40px;
+  height: 100px;
+  position: fixed;
+  top: 250px;
+  right: 0;
+  z-index: 999;
+  background: #fff url('../images/bg-contact-block.png') no-repeat 17px 50%;
+  text-decoration: none !important;
+  box-shadow: 0 0 7px #999999;
+  -moz-box-shadow: 0 0 7px #999999;
+  border-radius: 10px 0px 0px 10px;
+  -moz-border-radius: 10px 0px 0px 10px;
+  -webkit-border-top-right-radius: 0px;
+  -webkit-border-bottom-right-radius: 0px;
+}
+
+.ballerup-contact-block:hover,
+.ballerup-contact-block:focus,
+.ballerup-contact-block:active {
+  padding-right: 20px;
+}
+
+.i18n-en .ballerup-contact-block {
+  background-image: url('../images/bg-contact-block-en.png');
+}
+
+/* END Ballerup Contact Block */
+
+
+/* Site map */
+
+#site-map h2.title,
+#site-map div.description {
+  display: none;
+}
+
+/* END Site map */
+
+
+/* Footer */
+
+.section-footer {
+  padding-bottom: 20px;
+  overflow: hidden;
+}
+.zone-footer {
+  padding: 20px 0;
+  background: #fff;
+  -moz-box-shadow: 0 0 7px #999;
+  box-shadow: 0 0 7px #999;
+}
+
+.zone-footer .block .content {
+  font-size: 11px;
+}
+
+.zone-footer ul.menu {
+  margin: 0;
+  list-style: none;
+}
+.zone-footer ul.menu li {
+  margin: 0;
+  list-style: none;
+}
+
+/* END Footer */
+
+/* Links */
+
+a, a:active, a:visited {
+  color: #007aaf;
+  text-decoration: none;
+}
+a:hover {
+  color: #007aaf;
+  text-decoration: underline;
+}
+
+.region-header-first a {
+  font-size: 11px;
+  vertical-align: bottom;
+}
+
+.region-header-first a,
+.zone-footer a {
+  color: #666;
+}
+
+/* END Links */

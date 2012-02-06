@@ -1,0 +1,89 @@
+/** Basic layout **/
+
+body.page-imagecrop {
+  background: #fff;
+  height: 100%;
+  color: #333;
+  padding: 0 !important;
+}
+
+.page-imagecrop a {
+  color: #0074BD;  
+}
+
+.page-imagecrop .content {
+  margin-top: 0;
+}
+
+#imagecrop-selection {
+  border: 1px solid #ccc;
+  padding: 10px 0 0 12px;
+}
+
+.page-imagecrop label {
+  display: inline;
+  padding-right: 10px;
+  color: #333;
+  font-weight: bold;
+}
+
+.page-imagecrop .form-item {
+  margin-bottom: 12px; 
+}
+
+#imagecrop-style-selection-form {
+  float: left;
+}
+
+.imagecrop-form-link {
+  padding: 4px;
+  margin-left: 20px;
+  float: left;
+}
+
+#imagecrop-forms,
+#imagecrop-help {
+  padding: 8px 12px;
+}
+
+#imagecrop-preview,
+#imagecrop-crop-container {
+  margin: 0 12px;
+}
+
+#cancel-crop {
+  position: absolute;
+  right: 20px;
+  top: 16px;
+}
+
+/** Normal Imagecrop crop UI **/
+#imagecrop-ui #imagecrop-crop-settings-form,
+#imagecrop-ui #imagecrop-scale-settings-form {
+  float: left;
+}
+
+#imagecrop-crop-settings-form {
+  float: left;
+  margin-right: 40px;
+}
+
+/** Advanced imagecrop UI **/
+#imagecrop-left-controls {
+  float: left;
+  width: 215px;
+  border: 1px solid #ccc;
+  border-top: none;
+}
+
+#imagecrop-right {
+  float: left;
+}
+
+#imagecrop-left-controls .form-text {
+  width: 40px;
+}
+
+#imagecrop-crop-wrapper .boxwarning {
+  border: 1px solid red;
+}

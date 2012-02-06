@@ -1,0 +1,13 @@
+Index: modules/date/7.x-2.0-alpha4/date_api/theme/date-vcalendar.tpl.php
+===================================================================
+--- modules/date/7.x-2.0-alpha4/date_api/theme/date-vcalendar.tpl.php	(revision 608)
++++ modules/date/7.x-2.0-alpha4/date_api/theme/date-vcalendar.tpl.php	(working copy)
+@@ -14,7 +14,7 @@
+ BEGIN:VCALENDAR
+ VERSION:2.0
+ METHOD:<?php print $method; ?>
+-<?php if !empty($calname): ?>
++<?php if (!empty($calname)): ?>
+ X-WR-CALNAME;VALUE=TEXT:<?php print $calname . "\r\n"; ?>
+ <?php endif; ?>
+ PRODID:-//Drupal iCal API//EN

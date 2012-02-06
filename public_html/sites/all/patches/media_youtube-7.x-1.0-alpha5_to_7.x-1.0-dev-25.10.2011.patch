@@ -1,0 +1,229 @@
+diff --git a/MediaYouTubeStreamWrapper.inc b/MediaYouTubeStreamWrapper.inc
+index d6833e9..76d6f22 100644
+--- a/MediaYouTubeStreamWrapper.inc
++++ b/MediaYouTubeStreamWrapper.inc
+@@ -5,4 +5,4 @@
+  *   updated to 1.0-alpha5 or later. This is retained until then, so that
+  *   update.php can bootstrap.
+  */
+-include_once 'includes/MediaYouTubeStreamWrapper.inc';
++include_once DRUPAL_ROOT . '/' . drupal_get_path('module', 'media_youtube') . '/includes/includes/MediaYouTubeStreamWrapper.inc';
+diff --git a/includes/MediaInternetYouTubeHandler.inc b/includes/MediaInternetYouTubeHandler.inc
+index fbc92ec..6e349fc 100644
+--- a/includes/MediaInternetYouTubeHandler.inc
++++ b/includes/MediaInternetYouTubeHandler.inc
+@@ -28,17 +28,6 @@ class MediaInternetYouTubeHandler extends MediaInternetBaseHandler {
+     }
+   }
+ 
+-  public function validate() {
+-    // @todo Media module currently fails when two files try to have the same
+-    //   URI, so catch that in the validation step. Some day, it would be nice
+-    //   to allow it, however. See http://drupal.org/node/952422.
+-    $uri = $this->parse($this->embedCode);
+-    $existing_files = file_load_multiple(array(), array('uri' => $uri));
+-    if (count($existing_files)) {
+-      throw new MediaInternetValidationException(t('You have entered a URL for a video that is already in your library.'));
+-    }
+-  }
+-
+   public function save() {
+     $file = $this->getFileObject();
+     file_save($file);
+diff --git a/includes/media_youtube.styles.inc b/includes/media_youtube.styles.inc
+index f11ca29..6b62d85 100644
+--- a/includes/media_youtube.styles.inc
++++ b/includes/media_youtube.styles.inc
+@@ -53,7 +53,7 @@ function media_youtube_styles_containers() {
+ 
+ function media_youtube_formatter_filter($variables) {
+   if (isset($variables['object'])) {
+-    $object = $variables['object'];
++    $object = isset($variables['object']->file) ? $variables['object']->file : $variables['object'];
+     return (file_uri_scheme($object->uri) == 'youtube') && ($object->filemime == 'video/youtube');
+   }
+ }
+@@ -62,7 +62,8 @@ function media_youtube_formatter_filter($variables) {
+  * Implementation of the File Styles module's hook_file_styles_filter().
+  */
+ function media_youtube_file_styles_filter($object) {
+-  if ((file_uri_scheme($object->uri) == 'youtube') && ($object->filemime == 'video/youtube')) {
++  $file = isset($object->file) ? $object->file : $object;
++  if ((file_uri_scheme($file->uri) == 'youtube') && ($file->filemime == 'video/youtube')) {
+     return 'media_youtube';
+   }
+ }
+@@ -86,7 +87,7 @@ function media_youtube_styles_styles() {
+             'youtube_preview' => array(
+               'name' => 'youtube_preview',
+               'effects' => array(
+-                array('label' => t('Autoplay'), 'name' => 'autoplay', 'data' => array('autoplay' => 1)),
++                array('label' => t('Autoplay'), 'name' => 'autoplay', 'data' => array('autoplay' => 0)),
+                 array('label' => t('Resize'), 'name' => 'resize', 'data' => array('width' => 220, 'height' => 165)),
+               ),
+             ),
+@@ -245,6 +246,20 @@ function media_youtube_styles_default_presets() {
+     );
+     $presets['file']['containers']['media_youtube']['presets']['unlinked_' . $style_name] = $presets['file']['containers']['media_youtube']['presets']['linked_' . $style_name];
+     array_shift($presets['file']['containers']['media_youtube']['presets']['unlinked_' . $style_name]);
++    foreach ($image_style['effects'] as $effect) {
++      if (in_array($effect['name'], array('image_scale', 'image_scale_and_crop', 'image_resize', 'image_crop'))) {
++        $presets['file']['containers']['media_youtube']['presets']['video_' . $style_name] = array(
++          array(
++            'name' => 'resize',
++            'settings' => $effect['data'],
++          ),
++          array(
++            'name' => 'video',
++            'settings' => array(),
++          ),
++        );
++      }
++    }
+   }
+   return $presets;
+ }
+diff --git a/includes/themes/media_youtube.theme.inc b/includes/themes/media_youtube.theme.inc
+index f51cd5b..2f4bf23 100644
+--- a/includes/themes/media_youtube.theme.inc
++++ b/includes/themes/media_youtube.theme.inc
+@@ -36,29 +36,24 @@ function media_youtube_preprocess_media_youtube_video(&$variables) {
+     </object>
+ OUTPUT;
+ 
+-  // @todo Replace this inline JavaScript with at least calls to
+-  //   drupal_add_js()/drupal_get_js(), and ideally, with a behavior. Keep
+-  //   in mind that the solution needs to work when inside a colorbox or
+-  //   otherwise in an AJAX response, but that should now be possible in D7.
+-  $iframe_id = drupal_json_encode($variables['wrapper_id'] .'_iframe');
+-  $wrapper_id = drupal_json_encode($variables['wrapper_id']);
+-  $JSObject = 'Drupal.settings.media_youtube[' . $wrapper_id . ']';
+-  $variables['output'] .= <<<OUTPUT
+-    <script type="text/javascript">
+-      if (Drupal.settings && Drupal.media_youtube) {
+-        Drupal.settings.media_youtube = Drupal.settings.media_youtube || {};
+-        $JSObject = {};
+-        $JSObject.width = {$variables['width']};
+-        $JSObject.height = {$variables['height']};
+-        $JSObject.video_id = "{$variables['video_id']}";
+-        $JSObject.fullscreen = {$variables['fullscreen']};
+-        $JSObject.id = $iframe_id;
+-        $JSObject.options = { autoplay: {$variables['autoplay']} };
+-        Drupal.media_youtube.insertEmbed($wrapper_id);
+-      }
+-    </script>
+-OUTPUT;
+-
++  // Pass the settings to replace the object tag with an iframe.
++  $settings = array(
++    'media_youtube' => array(
++      $variables['wrapper_id'] => array(
++        'width' => $variables['width'],
++        'height' => $variables['height'],
++        'video_id' => $variables['video_id'],
++        'fullscreen' => $variables['fullscreen'],
++        'id' => $variables['wrapper_id'] .'_iframe',
++      ),
++    ),
++  );
++  if ($variables['autoplay']) {
++    $settings['media_youtube'][$variables['wrapper_id']]['options'] = array(
++      'autoplay' => $variables['autoplay'],
++    );
++  }
++  drupal_add_js($settings, 'setting');
+   drupal_add_js(drupal_get_path('module', 'media_youtube') . '/js/media_youtube.js');
+   drupal_add_css(drupal_get_path('module', 'media_youtube') . '/css/media_youtube.css');
+   drupal_add_js(drupal_get_path('module', 'media_youtube') . '/js/flash_detect_min.js');
+diff --git a/js/media_youtube.js b/js/media_youtube.js
+index 7a744fd..2d8b657 100644
+--- a/js/media_youtube.js
++++ b/js/media_youtube.js
+@@ -24,6 +24,13 @@ Drupal.behaviors.media_youtube = {
+     if (!FlashDetect.installed && !html5){
+       $('.media-youtube-preview-wrapper').each(Drupal.media_youtube.needFlash);
+     }
++
++    // Replace all object tags with iframes.
++    if (Drupal.settings && Drupal.settings.media_youtube) {
++      for (video in Drupal.settings.media_youtube) {
++        Drupal.media_youtube.insertEmbed(video);
++      }
++    }
+   }
+ };
+ 
+@@ -48,6 +55,7 @@ Drupal.media_youtube.insertEmbed = function (embed_id) {
+   var src = 'http://www.youtube.com/embed/' + settings.video_id;
+ 
+   // Allow other modules to modify the video settings.
++  settings.options = settings.options || {};
+   settings.options.wmode = 'opaque';
+   $(window).trigger('media_youtube_load', settings);
+ 
+diff --git a/media_youtube.info b/media_youtube.info
+index 1d766a3..d98705e 100644
+--- a/media_youtube.info
++++ b/media_youtube.info
+@@ -4,8 +4,10 @@ description = Provides YouTube support to the Media module.
+ package = "Media"
+ core = 7.x
+ files[] = media_youtube.module
+-files[] = includes/MediaYouTubeStreamWrapper.inc
+ files[] = includes/MediaInternetYouTubeHandler.inc
+-files[] = includes/media_youtube.styles.inc
++files[] = includes/MediaYouTubeStreamWrapper.inc
+ files[] = includes/MediaYouTubeStyles.inc
++files[] = includes/media_youtube.formatters.inc
++files[] = includes/media_youtube.styles.inc
++files[] = includes/media_youtube.variables.inc
+ dependencies[] = media_internet
+diff --git a/media_youtube.install b/media_youtube.install
+index 48d23ed..8a413be 100644
+--- a/media_youtube.install
++++ b/media_youtube.install
+@@ -16,6 +16,8 @@ function media_youtube_install() {
+  * Implement hook_uninstall().
+  */
+ function media_youtube_uninstall() {
++  drupal_load('module', 'media_youtube');
++
+   foreach (media_youtube_variable_default() as $variable => $value) {
+     media_youtube_variable_del($variable);
+   }
+@@ -90,3 +92,11 @@ function media_youtube_update_7009() {
+ function media_youtube_update_7010() {
+   return array();
+ }
++
++/**
++ * Add video presets based on Image styles.
++ */
++function media_youtube_update_7011() {
++  return array();
++}
++
+diff --git a/media_youtube.module b/media_youtube.module
+index 2282169..071812c 100644
+--- a/media_youtube.module
++++ b/media_youtube.module
+@@ -15,16 +15,16 @@
+  */
+ 
+ // A registry of variable_get defaults.
+-include_once('includes/media_youtube.variables.inc');
++include_once DRUPAL_ROOT . '/' . drupal_get_path('module', 'media_youtube') . '/includes/media_youtube.variables.inc';
+ 
+ // Hooks and callbacks for integrating with Styles module for display.
+ // @todo Can save a little overhead for people without Styles module by wrapping
+ //   this inside a module_exists('styles'). However, is that safe to do in
+ //   global context? If not, is there any down side to doing it in hook_init()?
+-include_once('includes/media_youtube.styles.inc');
++include_once DRUPAL_ROOT . '/' . drupal_get_path('module', 'media_youtube') . '/includes/media_youtube.styles.inc';
+ 
+ // Hooks and callbacks for integrating with File Entity module for display.
+-include_once('includes/media_youtube.formatters.inc');
++include_once DRUPAL_ROOT . '/' . drupal_get_path('module', 'media_youtube') . '/includes/media_youtube.formatters.inc';
+ 
+ /**
+  * Implements hook_media_internet_providers().

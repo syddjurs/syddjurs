@@ -1,0 +1,26 @@
+name = "Ballerup Migrate"
+description = "Migration tasks for Ballerup.dk."
+package = "Balk"
+core = 7.x
+version = "7.x-1.2"
+
+dependencies[] = image
+dependencies[] = list
+dependencies[] = migrate
+dependencies[] = migrate_extras
+dependencies[] = number
+dependencies[] = taxonomy
+
+files[] = balk_migrate.inc
+files[] = contentpage.balk_migrate.inc
+files[] = files.balk_migrate.inc
+files[] = media.balk_migrate.inc
+files[] = news.balk_migrate.inc
+files[] = person.balk_migrate.inc
+files[] = politician.balk_migrate.inc
+files[] = iframe.balk_migrate.inc
+
+; Extra files
+files[] = plugins/balk_file.inc
+files[] = extra_files.source.inc
+files[] = extra_files.balk_migrate.inc

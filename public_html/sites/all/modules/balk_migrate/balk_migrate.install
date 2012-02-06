@@ -1,0 +1,48 @@
+<?php
+
+/**
+ * @file
+ * Install, update and schema for balk_migrate.
+ */
+
+/**
+ * Implements hook_schema().
+ */
+function balk_migrate_schema() {
+  $schema = array();
+  $schema['balk_migrate_source_uri_map'] = balk_migrate_schema_source_uri_map();
+  return $schema;
+}
+
+function balk_migrate_schema_source_uri_map() {
+  return array(
+    'description' => 'Balk migration source uri map',
+    'fields' => array(
+      'source_id' => array(
+        'type' => 'serial',
+        'unsigned' => TRUE,
+        'not null' => TRUE,
+      ),
+      'migration_name' => array(
+        'type' => 'varchar',
+        'length' => 255,
+        'not null' => TRUE,
+      ),
+      'destination_id' => array(
+        'type' => 'int',
+        'unsigned' => TRUE,
+        'not null' => FALSE,
+      ),
+    ),
+    'primary key' => array('source_id'),
+  );
+}
+
+/**
+ * Install balk_migrates's tables.
+ */
+function balk_migrate_update_7001() {
+  drupal_install_schema('balk_migrate');
+  
+  return 'Schema for balk_migrate has been installed.';
+}

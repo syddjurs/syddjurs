@@ -1,0 +1,19 @@
+.zone-content .region-content-top {
+  width: 960px !important;
+  margin: 0 0 10px 0;
+}
+
+.subsite-content-top {
+  height: 100px;
+  overflow: hidden;
+}
+.subsite-logo {
+  width: 200px;
+  height: 100px;
+  float: left;
+}
+.subsite-banner-wrapper {
+  width: 760px;
+  height: 100px;
+  float: right;
+}
