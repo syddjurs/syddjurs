@@ -1,0 +1,103 @@
+<?php
+/**
+ * Implements hook_apachesolr_field_mappings_alter().
+ */
+function apachesolr_taxonomy_custom_fields_apachesolr_field_mappings_alter(&$mappings, $entity_type) {
+  // alter the default indexing_callback function of the
+  // taxonomy_term_reference field
+  $mappings['taxonomy_term_reference']['indexing_callback'] = 'apachesolr_taxonomy_custom_fields_term_reference_indexing_callback';
+}
+
+/**
+ * This callback function is copied from the original
+ * apachesolr_term_reference_indexing_callback in apachesolr.index.inc
+ *
+ * Changes to the original are bracketed in
+ * *** START CHANGE *** and *** END CHANGE ***
+ */
+function apachesolr_taxonomy_custom_fields_term_reference_indexing_callback($node, $field_name, $index_key, $field_info) {
+  // Keep ancestors cached
+  $ancestors = &drupal_static(__FUNCTION__, array());
+
+  $fields = array();
+  $vocab_names = array();
+  if (!empty($node->{$field_name}) && function_exists('taxonomy_get_parents_all')) {
+    $field = $node->$field_name;
+    list($lang, $items) = each($field);
+    foreach ($items as $item) {
+      // Triple indexing of tids lets us do effecient searches (on tid)
+      // and do accurate per field or per-vocabulary faceting.
+
+      // By including the ancestors to a term in the index we make
+      // sure that searches for general categories match specific
+      // categories, e.g. Fruit -> apple, a search for fruit will find
+      // content categorized with apple.
+      if (!isset($ancestors[$item['tid']])) {
+        $ancestors[$item['tid']] = taxonomy_get_parents_all($item['tid']);
+      }
+      foreach ($ancestors[$item['tid']] as $ancestor) {
+        // Index parent term against the field. Note that this happens
+        // regardless of whether the facet is set to show as a hierarchy or not.
+        // We would need a separate field if we were to index terms without any
+        // hierarchy at all.
+        $fields[] = array(
+          'key' => $index_key,
+          'value' => $ancestor->tid,
+        );
+        $fields[] = array(
+          'key' => 'tid',
+          'value' => $ancestor->tid,
+        );
+        $fields[] = array(
+          'key' => 'im_vid_' . $ancestor->vid,
+          'value' => $ancestor->tid,
+        );
+        $name = apachesolr_clean_text($ancestor->name);
+        $name = 'hack';
+        $vocab_names[$ancestor->vid][] = $name;
+        // We index each name as a string for cross-site faceting
+        // using the vocab name rather than vid in field construction .
+        $fields[] = array(
+          'key' => 'sm_vid_' . apachesolr_vocab_name($ancestor->vid),
+          'value' => $name,
+        );
+      }
+      // *** START CHANGE ***
+      //Add taxonomy cue words to the index. Ancestors' cue words are not added.
+      if (isset($item['taxonomy_term']->field_cue_words)) {
+        foreach ($item['taxonomy_term']->field_cue_words as $cue_word_list ) {
+      	  // TODO PETER S:
+          //   figure out why the fields are nested in an outer array
+      	  foreach($cue_word_list as $cue_word) {
+            /**
+             * In schema.xml the "tm_vid" prefix will cause these these
+             * cue words to be added to a single field called "taxonomy_names"
+             *   <copyField source="tm_vid_*" dest="taxonomy_names"/>
+             * This will cause the cue words to be treated in the same
+             * manner as the title of the taxonomy
+             * TODO:
+             *   Create a seperate field for the cue words instead of using
+             *   taxonomy_names
+             *
+             * @see ../apachesolr/solr-conf/schema.xml
+             */
+			      $fields[] = array(
+              'key' => 'tm_vid_' . $item['taxonomy_term']->vid . '_cue_words',
+              'value' => $cue_word['safe_value'],
+            );
+          }
+        }
+      }
+      // *** END CHANGE ***
+    }
+    // Index the term names into a text field for MLT queries and keyword searching.
+    foreach ($vocab_names as $vid => $names) {
+      $fields[] = array(
+        'key' => 'tm_vid_' . $vid . '_names',
+        'value' => implode(' ', $names),
+      );
+    }
+
+  }
+  return $fields;
+}

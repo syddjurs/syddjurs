@@ -1,0 +1,7 @@
+name = Apache Solr Taxonomy Custom Fields
+description = Extends Apache Solr search functionality by adding Taxonomy Custom Fields to the search index
+package = Search Toolkit
+core = 7.x
+version = 7.x-1.0
+
+files[] = apachesolr_taxonomy_custom_fields.module
